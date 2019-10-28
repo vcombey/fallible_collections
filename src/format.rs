@@ -1,5 +1,5 @@
 use super::FallibleVec;
-use alloc::collections::CollectionAllocErr;
+use alloc::collections::TryReserveError;
 use alloc::fmt::{Arguments, Write};
 use alloc::string::String;
 use alloc::vec::Vec;
@@ -8,7 +8,7 @@ use alloc::vec::Vec;
 /// Warning: the max capacity must be > to the formating of the
 /// arguments. If writing the argument on the string exceed the
 /// capacity, no error is return and an allocation can occurs
-pub fn try_format(max_capacity: usize, args: Arguments<'_>) -> Result<String, CollectionAllocErr> {
+pub fn try_format(max_capacity: usize, args: Arguments<'_>) -> Result<String, TryReserveError> {
     let v = Vec::try_with_capacity(max_capacity)?;
     let mut s = String::from_utf8(v).expect("wtf an empty vec should be valid utf8");
     s.write_fmt(args)

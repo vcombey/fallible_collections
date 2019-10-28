@@ -1,7 +1,7 @@
 // This is pretty much entirely stolen from TreeSet, since BTreeMap has an identical interface
 // to TreeMap
 
-use alloc::collections::CollectionAllocErr;
+use alloc::collections::TryReserveError;
 use core::borrow::Borrow;
 use core::cmp::max;
 use core::cmp::Ordering::{self, Equal, Greater, Less};
@@ -633,7 +633,7 @@ impl<T: Ord> BTreeSet<T> {
     /// assert_eq!(set.len(), 1);
     /// ```
 
-    pub fn try_insert(&mut self, value: T) -> Result<bool, CollectionAllocErr> {
+    pub fn try_insert(&mut self, value: T) -> Result<bool, TryReserveError> {
         Ok(self.map.try_insert(value, ())?.is_none())
     }
 
@@ -653,7 +653,7 @@ impl<T: Ord> BTreeSet<T> {
     /// assert_eq!(set.get(&[][..]).unwrap().capacity(), 10);
     /// ```
 
-    pub fn replace(&mut self, value: T) -> Result<Option<T>, CollectionAllocErr> {
+    pub fn replace(&mut self, value: T) -> Result<Option<T>, TryReserveError> {
         Ok(Recover::replace(&mut self.map, value)?)
     }
 
@@ -771,7 +771,7 @@ impl<T: Ord> BTreeSet<T> {
     /// assert!(b.contains(&41));
     /// ```
 
-    pub fn try_split_off<Q: ?Sized + Ord>(&mut self, key: &Q) -> Result<Self, CollectionAllocErr>
+    pub fn try_split_off<Q: ?Sized + Ord>(&mut self, key: &Q) -> Result<Self, TryReserveError>
     where
         T: Borrow<Q>,
     {

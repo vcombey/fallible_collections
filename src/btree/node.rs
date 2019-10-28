@@ -39,9 +39,7 @@ use core::slice;
 use crate::boxed::FallibleBox;
 use alloc::alloc::{Alloc, Global, Layout};
 use alloc::boxed::Box;
-use alloc::collections::CollectionAllocErr;
-
-use core::uninitialized_array;
+use alloc::collections::TryReserveError;
 
 const B: usize = 6;
 pub const MIN_LEN: usize = B - 1;
@@ -110,8 +108,8 @@ impl<K, V> LeafNode<K, V> {
         LeafNode {
             // As a general policy, we leave fields uninitialized if they can be, as this should
             // be both slightly faster and easier to track in Valgrind.
-            keys: uninitialized_array![_; CAPACITY],
-            vals: uninitialized_array![_; CAPACITY],
+            keys: [MaybeUninit::UNINIT; CAPACITY],
+            vals: [MaybeUninit::UNINIT; CAPACITY],
             parent: ptr::null(),
             parent_idx: MaybeUninit::uninit(),
             len: 0,
@@ -163,7 +161,7 @@ impl<K, V> InternalNode<K, V> {
     unsafe fn new() -> Self {
         InternalNode {
             data: LeafNode::new(),
-            edges: uninitialized_array![_; 2*B],
+            edges: [MaybeUninit::UNINIT; 2*B],
         }
     }
 }
@@ -228,7 +226,7 @@ impl<K, V> Root<K, V> {
         }
     }
 
-    pub fn new_leaf() -> Result<Self, CollectionAllocErr> {
+    pub fn new_leaf() -> Result<Self, TryReserveError> {
         Ok(Root {
             node: BoxedNode::from_leaf(Box::try_new(unsafe { LeafNode::new() })?),
             height: 0,
@@ -266,7 +264,7 @@ impl<K, V> Root<K, V> {
     /// new node the root. This increases the height by 1 and is the opposite of `pop_level`.
     pub fn push_level(
         &mut self,
-    ) -> Result<NodeRef<marker::Mut<'_>, K, V, marker::Internal>, CollectionAllocErr> {
+    ) -> Result<NodeRef<marker::Mut<'_>, K, V, marker::Internal>, TryReserveError> {
         debug_assert!(!self.is_shared_root());
         let mut new_node = Box::try_new(unsafe { InternalNode::new() })?;
         new_node.edges[0].write(unsafe { BoxedNode::from_ptr(self.node.as_ptr()) });
@@ -1013,7 +1011,7 @@ impl<'a, K, V> Handle<NodeRef<marker::Mut<'a>, K, V, marker::Leaf>, marker::Edge
         mut self,
         key: K,
         val: V,
-    ) -> Result<(InsertResult<'a, K, V, marker::Leaf>, *mut V), CollectionAllocErr> {
+    ) -> Result<(InsertResult<'a, K, V, marker::Leaf>, *mut V), TryReserveError> {
         if self.node.len() < CAPACITY {
             let ptr = self.insert_fit(key, val);
             Ok((InsertResult::Fit(Handle::new_kv(self.node, self.idx)), ptr))
@@ -1092,7 +1090,7 @@ impl<'a, K, V> Handle<NodeRef<marker::Mut<'a>, K, V, marker::Internal>, marker::
         key: K,
         val: V,
         edge: Root<K, V>,
-    ) -> Result<InsertResult<'a, K, V, marker::Internal>, CollectionAllocErr> {
+    ) -> Result<InsertResult<'a, K, V, marker::Internal>, TryReserveError> {
         // Necessary for correctness, but this is an internal module
         debug_assert!(edge.height == self.node.height - 1);
 
@@ -1191,7 +1189,7 @@ impl<'a, K, V> Handle<NodeRef<marker::Mut<'a>, K, V, marker::Leaf>, marker::KV> 
             V,
             Root<K, V>,
         ),
-        CollectionAllocErr,
+        TryReserveError,
     > {
         debug_assert!(!self.node.is_shared_root());
         unsafe {
@@ -1264,7 +1262,7 @@ impl<'a, K, V> Handle<NodeRef<marker::Mut<'a>, K, V, marker::Internal>, marker::
             V,
             Root<K, V>,
         ),
-        CollectionAllocErr,
+        TryReserveError,
     > {
         unsafe {
             let mut new_node = Box::try_new(InternalNode::new())?;

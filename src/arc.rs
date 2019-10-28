@@ -3,20 +3,20 @@ use super::FallibleBox;
 use super::TryClone;
 
 use alloc::boxed::Box;
-use alloc::collections::CollectionAllocErr;
+use alloc::collections::TryReserveError;
 use alloc::sync::Arc;
 
 /// trait to implement Fallible Arc
 pub trait FallibleArc<T> {
     /// try creating a new Arc, returning a Result<Box<T>,
-    /// CollectionAllocErr> if allocation failed
-    fn try_new(t: T) -> Result<Self, CollectionAllocErr>
+    /// TryReserveError> if allocation failed
+    fn try_new(t: T) -> Result<Self, TryReserveError>
     where
         Self: Sized;
 }
 
 impl<T> FallibleArc<T> for Arc<T> {
-    fn try_new(t: T) -> Result<Self, CollectionAllocErr> {
+    fn try_new(t: T) -> Result<Self, TryReserveError> {
         // doesn't work as the inner variable of arc are also stocked in the box
         let b = Box::try_new(t)?;
         Ok(Arc::from(b))
@@ -25,7 +25,7 @@ impl<T> FallibleArc<T> for Arc<T> {
 
 /// Just a TryClone boilerplate for Arc
 impl<T: ?Sized> TryClone for Arc<T> {
-    fn try_clone(&self) -> Result<Self, alloc::collections::CollectionAllocErr> {
+    fn try_clone(&self) -> Result<Self, alloc::collections::TryReserveError> {
         Ok(self.clone())
     }
 }

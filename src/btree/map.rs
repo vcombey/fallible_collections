@@ -1,4 +1,4 @@
-use alloc::collections::CollectionAllocErr;
+use alloc::collections::TryReserveError;
 use core::borrow::Borrow;
 use core::cmp::Ordering;
 use core::fmt::Debug;
@@ -137,10 +137,10 @@ unsafe impl<#[may_dangle] K, #[may_dangle] V> Drop for BTreeMap<K, V> {
 use crate::TryClone;
 
 impl<K: TryClone, V: TryClone> TryClone for BTreeMap<K, V> {
-    fn try_clone(&self) -> Result<BTreeMap<K, V>, CollectionAllocErr> {
+    fn try_clone(&self) -> Result<BTreeMap<K, V>, TryReserveError> {
         fn clone_subtree<'a, K: TryClone, V: TryClone>(
             node: node::NodeRef<marker::Immut<'a>, K, V, marker::LeafOrInternal>,
-        ) -> Result<BTreeMap<K, V>, CollectionAllocErr>
+        ) -> Result<BTreeMap<K, V>, TryReserveError>
         where
             K: 'a,
             V: 'a,
@@ -325,7 +325,7 @@ where
         }
     }
 
-    fn replace(&mut self, key: K) -> Result<Option<K>, CollectionAllocErr> {
+    fn replace(&mut self, key: K) -> Result<Option<K>, TryReserveError> {
         self.ensure_root_is_owned()?;
         match search::search_tree::<marker::Mut<'_>, K, (), K>(self.root.as_mut(), &key) {
             Found(handle) => Ok(Some(mem::replace(handle.into_kv_mut().0, key))),
@@ -750,7 +750,7 @@ impl<K: Ord, V> BTreeMap<K, V> {
     /// assert_eq!(map[&37], "c");
     /// ```
 
-    pub fn try_insert(&mut self, key: K, value: V) -> Result<Option<V>, CollectionAllocErr> {
+    pub fn try_insert(&mut self, key: K, value: V) -> Result<Option<V>, TryReserveError> {
         match self.try_entry(key)? {
             Occupied(mut entry) => Ok(Some(entry.insert(value))),
             Vacant(entry) => {
@@ -961,7 +961,7 @@ impl<K: Ord, V> BTreeMap<K, V> {
     /// assert_eq!(count["a"], 3);
     /// ```
 
-    pub fn try_entry(&mut self, key: K) -> Result<Entry<'_, K, V>, CollectionAllocErr> {
+    pub fn try_entry(&mut self, key: K) -> Result<Entry<'_, K, V>, TryReserveError> {
         // FIXME(@porglezomp) Avoid allocating if we don't insert
         self.ensure_root_is_owned()?;
         Ok(match search::search_tree(self.root.as_mut(), &key) {
@@ -1080,7 +1080,7 @@ impl<K: Ord, V> BTreeMap<K, V> {
     /// assert_eq!(b[&41], "e");
     /// ```
 
-    pub fn split_off<Q: ?Sized + Ord>(&mut self, key: &Q) -> Result<Self, CollectionAllocErr>
+    pub fn split_off<Q: ?Sized + Ord>(&mut self, key: &Q) -> Result<Self, TryReserveError>
     where
         K: Borrow<Q>,
     {
@@ -1232,7 +1232,7 @@ impl<K: Ord, V> BTreeMap<K, V> {
     }
 
     /// If the root node is the shared root node, allocate our own node.
-    fn ensure_root_is_owned(&mut self) -> Result<(), CollectionAllocErr> {
+    fn ensure_root_is_owned(&mut self) -> Result<(), TryReserveError> {
         if self.root.is_shared_root() {
             self.root = node::Root::new_leaf()?;
         }
@@ -2164,7 +2164,7 @@ impl<'a, K: Ord, V> Entry<'a, K, V> {
     /// assert_eq!(map["poneyland"], 12);
     /// ```
 
-    pub fn or_try_insert(self, default: V) -> Result<&'a mut V, CollectionAllocErr> {
+    pub fn or_try_insert(self, default: V) -> Result<&'a mut V, TryReserveError> {
         match self {
             Occupied(entry) => Ok(entry.into_mut()),
             Vacant(entry) => entry.try_insert(default),
@@ -2190,7 +2190,7 @@ impl<'a, K: Ord, V> Entry<'a, K, V> {
     pub fn or_try_insert_with<F: FnOnce() -> V>(
         self,
         default: F,
-    ) -> Result<&'a mut V, CollectionAllocErr> {
+    ) -> Result<&'a mut V, TryReserveError> {
         match self {
             Occupied(entry) => Ok(entry.into_mut()),
             Vacant(entry) => entry.try_insert(default()),
@@ -2266,7 +2266,7 @@ impl<'a, K: Ord, V: Default> Entry<'a, K, V> {
     /// assert_eq!(map["poneyland"], None);
     /// # }
     /// ```
-    pub fn or_default(self) -> Result<&'a mut V, CollectionAllocErr> {
+    pub fn or_default(self) -> Result<&'a mut V, TryReserveError> {
         match self {
             Occupied(entry) => Ok(entry.into_mut()),
             Vacant(entry) => entry.try_insert(Default::default()),
@@ -2328,7 +2328,7 @@ impl<'a, K: Ord, V> VacantEntry<'a, K, V> {
     /// assert_eq!(count["a"], 3);
     /// ```
 
-    pub fn try_insert(self, value: V) -> Result<&'a mut V, CollectionAllocErr> {
+    pub fn try_insert(self, value: V) -> Result<&'a mut V, TryReserveError> {
         *self.length += 1;
 
         let out_ptr;

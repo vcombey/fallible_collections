@@ -6,7 +6,7 @@ pub use set::BTreeSet;
 
 mod node;
 mod search;
-use alloc::collections::CollectionAllocErr;
+use alloc::collections::TryReserveError;
 
 #[doc(hidden)]
 trait Recover<Q: ?Sized> {
@@ -14,5 +14,5 @@ trait Recover<Q: ?Sized> {
 
     fn get(&self, key: &Q) -> Option<&Self::Key>;
     fn take(&mut self, key: &Q) -> Option<Self::Key>;
-    fn replace(&mut self, key: Self::Key) -> Result<Option<Self::Key>, CollectionAllocErr>;
+    fn replace(&mut self, key: Self::Key) -> Result<Option<Self::Key>, TryReserveError>;
 }

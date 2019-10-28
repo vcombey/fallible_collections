@@ -1,19 +1,19 @@
 //! Implement a Fallible Rc
 use super::FallibleBox;
 use alloc::boxed::Box;
-use alloc::collections::CollectionAllocErr;
+use alloc::collections::TryReserveError;
 use alloc::rc::Rc;
 /// trait to implement Fallible Rc
 pub trait FallibleRc<T> {
     /// try creating a new Rc, returning a Result<Box<T>,
-    /// CollectionAllocErr> if allocation failed
-    fn try_new(t: T) -> Result<Self, CollectionAllocErr>
+    /// TryReserveError> if allocation failed
+    fn try_new(t: T) -> Result<Self, TryReserveError>
     where
         Self: Sized;
 }
 
 impl<T> FallibleRc<T> for Rc<T> {
-    fn try_new(t: T) -> Result<Self, CollectionAllocErr> {
+    fn try_new(t: T) -> Result<Self, TryReserveError> {
         let b = Box::try_new(t)?;
         unsafe { Ok(Rc::from_raw(Box::into_raw(b))) }
     }

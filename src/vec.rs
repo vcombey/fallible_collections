@@ -1,11 +1,11 @@
 //! Implement Fallible Vec
 use super::TryClone;
-use alloc::collections::CollectionAllocErr;
+use alloc::collections::TryReserveError;
 use alloc::vec::Vec;
 
 #[macro_export]
 /// macro trying to create a vec, return a
-/// Result<Vec<T>,CollectionAllocErr>
+/// Result<Vec<T>,TryReserveError>
 macro_rules! try_vec {
    ($elem:expr; $n:expr) => (
         $crate::vec::try_from_elem($elem, $n)
@@ -22,52 +22,52 @@ macro_rules! try_vec {
 /// trait implementing all fallible methods on vec
 pub trait FallibleVec<T> {
     /// see reserve
-    fn try_reserve(&mut self, additional: usize) -> Result<(), CollectionAllocErr>;
+    fn try_reserve(&mut self, additional: usize) -> Result<(), TryReserveError>;
     /// see push
-    fn try_push(&mut self, elem: T) -> Result<(), CollectionAllocErr>;
+    fn try_push(&mut self, elem: T) -> Result<(), TryReserveError>;
     /// try push and give back ownership in case of error
-    fn try_push_give_back(&mut self, elem: T) -> Result<(), (T, CollectionAllocErr)>;
+    fn try_push_give_back(&mut self, elem: T) -> Result<(), (T, TryReserveError)>;
     /// see with capacity, (Self must be sized by the constraint of Result)
-    fn try_with_capacity(capacity: usize) -> Result<Self, CollectionAllocErr>
+    fn try_with_capacity(capacity: usize) -> Result<Self, TryReserveError>
     where
         Self: core::marker::Sized;
     /// see insert
-    fn try_insert(&mut self, index: usize, element: T) -> Result<(), (T, CollectionAllocErr)>;
+    fn try_insert(&mut self, index: usize, element: T) -> Result<(), (T, TryReserveError)>;
     /// see append
-    fn try_append(&mut self, other: &mut Self) -> Result<(), CollectionAllocErr>;
+    fn try_append(&mut self, other: &mut Self) -> Result<(), TryReserveError>;
     /// see resize, only works when the `value` implements Copy, otherwise, look at try_resize_no_clone
-    fn try_resize(&mut self, new_len: usize, value: T) -> Result<(), CollectionAllocErr>
+    fn try_resize(&mut self, new_len: usize, value: T) -> Result<(), TryReserveError>
     where
         T: Copy + Clone;
     /// resize the vec by trying to clone the value repeatingly
-    fn try_resize_no_copy(&mut self, new_len: usize, value: T) -> Result<(), CollectionAllocErr>
+    fn try_resize_no_copy(&mut self, new_len: usize, value: T) -> Result<(), TryReserveError>
     where
         T: TryClone;
     /// see resize, only works when the `value` implements Copy, otherwise, look at try_extend_from_slice_no_copy
-    fn try_extend_from_slice(&mut self, other: &[T]) -> Result<(), CollectionAllocErr>
+    fn try_extend_from_slice(&mut self, other: &[T]) -> Result<(), TryReserveError>
     where
         T: Copy + Clone;
     /// extend the vec by trying to clone the value in `other`
-    fn try_extend_from_slice_no_copy(&mut self, other: &[T]) -> Result<(), CollectionAllocErr>
+    fn try_extend_from_slice_no_copy(&mut self, other: &[T]) -> Result<(), TryReserveError>
     where
         T: TryClone;
 }
 
 impl<T> FallibleVec<T> for Vec<T> {
-    fn try_reserve(&mut self, additional: usize) -> Result<(), CollectionAllocErr> {
+    fn try_reserve(&mut self, additional: usize) -> Result<(), TryReserveError> {
         self.try_reserve(additional)
     }
-    fn try_push(&mut self, elem: T) -> Result<(), CollectionAllocErr> {
+    fn try_push(&mut self, elem: T) -> Result<(), TryReserveError> {
         self.try_reserve(1)?;
         Ok(self.push(elem))
     }
-    fn try_push_give_back(&mut self, elem: T) -> Result<(), (T, CollectionAllocErr)> {
+    fn try_push_give_back(&mut self, elem: T) -> Result<(), (T, TryReserveError)> {
         if let Err(e) = self.try_reserve(1) {
             return Err((elem, e));
         }
         Ok(self.push(elem))
     }
-    fn try_with_capacity(capacity: usize) -> Result<Self, CollectionAllocErr>
+    fn try_with_capacity(capacity: usize) -> Result<Self, TryReserveError>
     where
         Self: core::marker::Sized,
     {
@@ -76,17 +76,17 @@ impl<T> FallibleVec<T> for Vec<T> {
         Ok(n)
     }
 
-    fn try_insert(&mut self, index: usize, element: T) -> Result<(), (T, CollectionAllocErr)> {
+    fn try_insert(&mut self, index: usize, element: T) -> Result<(), (T, TryReserveError)> {
         if let Err(e) = self.try_reserve(1) {
             return Err((element, e));
         }
         Ok(self.insert(index, element))
     }
-    fn try_append(&mut self, other: &mut Self) -> Result<(), CollectionAllocErr> {
+    fn try_append(&mut self, other: &mut Self) -> Result<(), TryReserveError> {
         self.try_reserve(other.len())?;
         Ok(self.append(other))
     }
-    fn try_resize(&mut self, new_len: usize, value: T) -> Result<(), CollectionAllocErr>
+    fn try_resize(&mut self, new_len: usize, value: T) -> Result<(), TryReserveError>
     where
         T: Copy + Clone,
     {
@@ -96,7 +96,7 @@ impl<T> FallibleVec<T> for Vec<T> {
         }
         Ok(self.resize(new_len, value))
     }
-    fn try_resize_no_copy(&mut self, new_len: usize, value: T) -> Result<(), CollectionAllocErr>
+    fn try_resize_no_copy(&mut self, new_len: usize, value: T) -> Result<(), TryReserveError>
     where
         T: TryClone,
     {
@@ -108,14 +108,14 @@ impl<T> FallibleVec<T> for Vec<T> {
             Ok(self.truncate(new_len))
         }
     }
-    fn try_extend_from_slice(&mut self, other: &[T]) -> Result<(), CollectionAllocErr>
+    fn try_extend_from_slice(&mut self, other: &[T]) -> Result<(), TryReserveError>
     where
         T: Copy + Clone,
     {
         self.try_reserve(other.len())?;
         Ok(self.extend_from_slice(other))
     }
-    fn try_extend_from_slice_no_copy(&mut self, other: &[T]) -> Result<(), CollectionAllocErr>
+    fn try_extend_from_slice_no_copy(&mut self, other: &[T]) -> Result<(), TryReserveError>
     where
         T: TryClone,
     {
@@ -135,13 +135,13 @@ impl<T> FallibleVec<T> for Vec<T> {
 }
 
 trait ExtendWith<T> {
-    fn next(&mut self) -> Result<T, CollectionAllocErr>;
+    fn next(&mut self) -> Result<T, TryReserveError>;
     fn last(self) -> T;
 }
 
 struct TryExtendElement<T: TryClone>(T);
 impl<T: TryClone> ExtendWith<T> for TryExtendElement<T> {
-    fn next(&mut self) -> Result<T, CollectionAllocErr> {
+    fn next(&mut self) -> Result<T, TryReserveError> {
         self.0.try_clone()
     }
     fn last(self) -> T {
@@ -154,7 +154,7 @@ trait TryExtend<T> {
         &mut self,
         n: usize,
         value: E,
-    ) -> Result<(), CollectionAllocErr>;
+    ) -> Result<(), TryReserveError>;
 }
 
 impl<T> TryExtend<T> for Vec<T> {
@@ -163,7 +163,7 @@ impl<T> TryExtend<T> for Vec<T> {
         &mut self,
         n: usize,
         mut value: E,
-    ) -> Result<(), CollectionAllocErr> {
+    ) -> Result<(), TryReserveError> {
         self.try_reserve(n)?;
 
         unsafe {
@@ -219,17 +219,17 @@ impl<T> Truncate for Vec<T> {
 }
 
 /// try creating a vec from an `elem` cloned `n` times, see std::from_elem
-pub fn try_from_elem<T: TryClone>(elem: T, n: usize) -> Result<Vec<T>, CollectionAllocErr> {
+pub fn try_from_elem<T: TryClone>(elem: T, n: usize) -> Result<Vec<T>, TryReserveError> {
     <T as SpecFromElem>::try_from_elem(elem, n)
 }
 
 // Specialization trait used for Vec::from_elem
 trait SpecFromElem: Sized {
-    fn try_from_elem(elem: Self, n: usize) -> Result<Vec<Self>, CollectionAllocErr>;
+    fn try_from_elem(elem: Self, n: usize) -> Result<Vec<Self>, TryReserveError>;
 }
 
 impl<T: TryClone> SpecFromElem for T {
-    default fn try_from_elem(elem: Self, n: usize) -> Result<Vec<T>, CollectionAllocErr> {
+    default fn try_from_elem(elem: Self, n: usize) -> Result<Vec<T>, TryReserveError> {
         let mut v = Vec::new();
         v.try_resize_no_copy(n, elem)?;
         Ok(v)
@@ -238,7 +238,7 @@ impl<T: TryClone> SpecFromElem for T {
 
 impl SpecFromElem for u8 {
     #[inline]
-    fn try_from_elem(elem: u8, n: usize) -> Result<Vec<u8>, CollectionAllocErr> {
+    fn try_from_elem(elem: u8, n: usize) -> Result<Vec<u8>, TryReserveError> {
         unsafe {
             let mut v = Vec::try_with_capacity(n)?;
             core::ptr::write_bytes(v.as_mut_ptr(), elem, n);
@@ -249,7 +249,7 @@ impl SpecFromElem for u8 {
 }
 
 impl<T: TryClone> TryClone for Vec<T> {
-    fn try_clone(&self) -> Result<Self, CollectionAllocErr>
+    fn try_clone(&self) -> Result<Self, TryReserveError>
     where
         Self: core::marker::Sized,
     {
@@ -262,11 +262,11 @@ impl<T: TryClone> TryClone for Vec<T> {
 pub trait TryFromIterator<I>: Sized {
     fn try_from_iterator<T: IntoIterator<Item = I>>(
         iterator: T,
-    ) -> Result<Self, CollectionAllocErr>;
+    ) -> Result<Self, TryReserveError>;
 }
 
 impl<I> TryFromIterator<I> for Vec<I> {
-    fn try_from_iterator<T: IntoIterator<Item = I>>(iterator: T) -> Result<Self, CollectionAllocErr>
+    fn try_from_iterator<T: IntoIterator<Item = I>>(iterator: T) -> Result<Self, TryReserveError>
     where
         T: IntoIterator<Item = I>,
     {
@@ -279,14 +279,14 @@ impl<I> TryFromIterator<I> for Vec<I> {
 }
 
 pub trait TryCollect<I> {
-    fn try_collect<C: TryFromIterator<I>>(self) -> Result<C, CollectionAllocErr>;
+    fn try_collect<C: TryFromIterator<I>>(self) -> Result<C, TryReserveError>;
 }
 
 impl<I, T> TryCollect<I> for T
 where
     T: IntoIterator<Item = I>,
 {
-    fn try_collect<C: TryFromIterator<I>>(self) -> Result<C, CollectionAllocErr> {
+    fn try_collect<C: TryFromIterator<I>>(self) -> Result<C, TryReserveError> {
         C::try_from_iterator(self)
     }
 }

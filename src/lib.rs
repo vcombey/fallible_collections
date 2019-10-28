@@ -8,9 +8,9 @@
 #![feature(ptr_internals)]
 #![feature(core_intrinsics)]
 #![feature(maybe_uninit_ref)]
-#![feature(maybe_uninit_array)]
 #![feature(maybe_uninit_slice)]
 #![feature(maybe_uninit_extra)]
+#![feature(internal_uninit_const)]
 
 extern crate alloc;
 
@@ -28,14 +28,14 @@ pub mod btree;
 pub mod format;
 pub mod try_clone;
 
-use alloc::collections::CollectionAllocErr;
+use alloc::collections::TryReserveError;
 
 /// trait for trying to clone an elem, return an error instead of
 /// panic if allocation failed
 pub trait TryClone {
     /// try clone method, (Self must be size because of Result
     /// constraint)
-    fn try_clone(&self) -> Result<Self, CollectionAllocErr>
+    fn try_clone(&self) -> Result<Self, TryReserveError>
     where
         Self: core::marker::Sized;
 }
