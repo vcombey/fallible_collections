@@ -2,10 +2,12 @@ Fallible Collections.rs
 ==============
 
 Implement api on rust collection wich returns a result when an allocation error occurs.
-This is inspired a lot by [RFC 2116](https://github.com/rust-lang/rfcs/blob/master/text/2116-alloc-me-maybe.md)
+This is inspired a lot by [RFC 2116](https://github.com/rust-lang/rfcs/blob/master/text/2116-alloc-me-maybe.md).
+
 The api currently propose a fallible interface for Vec, Box, Arc, Btree and Rc,
-a TryClone trait wich is implemented for primitive rust traits a fallible format macro.
-You use this use try_clone_derive crate wich derive TryClone for your own types.
+a TryClone trait wich is implemented for primitive rust traits and a fallible format macro.
+
+You can use this with try_clone_derive crate wich derive TryClone for your own types.
 
 # Getting Started
 
