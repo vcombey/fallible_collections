@@ -34,6 +34,13 @@ use alloc::collections::TryReserveError;
 
 /// trait for trying to clone an elem, return an error instead of
 /// panic if allocation failed
+/// # Examples
+///
+/// ```
+/// use fallible_collections::TryClone;
+/// let mut vec = vec![42, 100];
+/// assert_eq!(vec.try_clone().unwrap(), vec)
+/// ```
 pub trait TryClone {
     /// try clone method, (Self must be size because of Result
     /// constraint)

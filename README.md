@@ -49,6 +49,7 @@ fn main() {
 	let a: Vec<Vec<u8>> = try_vec![try_vec![42; 10].unwrap(); 100].unwrap();
 	let b: Vec<Vec<u8>> = vec![vec![42; 10]; 100];
 	assert_eq!(a, b);
+	assert_eq!(a.try_clone().unwrap(), a);
 	...
 }
 ```

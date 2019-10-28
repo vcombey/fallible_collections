@@ -1,13 +1,18 @@
+//! A try_format! macro replacing format!
 use super::FallibleVec;
 use alloc::collections::TryReserveError;
 use alloc::fmt::{Arguments, Write};
 use alloc::string::String;
 use alloc::vec::Vec;
 
-/// take a max capacity a try allocating a string with it,
-/// Warning: the max capacity must be > to the formating of the
+/// Take a max capacity a try allocating a string with it.
+///
+/// # Warning:
+///
+/// the max capacity must be > to the formating of the
 /// arguments. If writing the argument on the string exceed the
-/// capacity, no error is return and an allocation can occurs
+/// capacity, no error is return and an allocation can occurs which
+/// can lead to a panic
 pub fn try_format(max_capacity: usize, args: Arguments<'_>) -> Result<String, TryReserveError> {
     let v = Vec::try_with_capacity(max_capacity)?;
     let mut s = String::from_utf8(v).expect("wtf an empty vec should be valid utf8");
@@ -17,6 +22,14 @@ pub fn try_format(max_capacity: usize, args: Arguments<'_>) -> Result<String, Tr
 }
 
 #[macro_export]
+/// Take a max capacity a try allocating a string with it.
+///
+/// # Warning:
+///
+/// the max capacity must be > to the formating of the
+/// arguments. If writing the argument on the string exceed the
+/// capacity, no error is return and an allocation can occurs which
+/// can lead to a panic
 macro_rules! tryformat {
     ($max_capacity:tt, $($arg:tt)*) => (
         $crate::format::try_format($max_capacity, format_args!($($arg)*))

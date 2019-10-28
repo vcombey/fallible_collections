@@ -1,3 +1,4 @@
+//! Implement Fallible Btree, As there is no try_reserve methods on btree, I add no choice but to fork the std implementation and change return types.
 pub mod map;
 pub use map::BTreeMap;
 
