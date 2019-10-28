@@ -1,5 +1,7 @@
 //! impl Fallible collections on allocation errors, quite as describe
 //! in [RFC 2116](https://github.com/rust-lang/rfcs/blob/master/text/2116-alloc-me-maybe.md)
+//! This was used in the turbofish OS hobby project to mitigate the
+//! the lack of faillible allocation in rust.
 #![cfg_attr(not(test), no_std)]
 #![feature(try_reserve)]
 #![feature(specialization)]
