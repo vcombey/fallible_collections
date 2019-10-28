@@ -15,7 +15,7 @@ pub trait FallibleRc<T> {
 impl<T> FallibleRc<T> for Rc<T> {
     fn try_new(t: T) -> Result<Self, TryReserveError> {
         let b = Box::try_new(t)?;
-        unsafe { Ok(Rc::from_raw(Box::into_raw(b))) }
+        Ok(Rc::from(b))
     }
 }
 
