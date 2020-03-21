@@ -32,5 +32,4 @@ mod test {
         let _y = Rc::clone(&x);
         assert!(Rc::get_mut(&mut x).is_none());
     }
-
 }

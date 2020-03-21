@@ -37,7 +37,7 @@ use core::ptr::{self, NonNull, Unique};
 use core::slice;
 
 use crate::boxed::FallibleBox;
-use alloc::alloc::{Alloc, Global, Layout};
+use alloc::alloc::{AllocRef, Global, Layout};
 use alloc::boxed::Box;
 use alloc::collections::TryReserveError;
 
@@ -161,7 +161,7 @@ impl<K, V> InternalNode<K, V> {
     unsafe fn new() -> Self {
         InternalNode {
             data: LeafNode::new(),
-            edges: [MaybeUninit::UNINIT; 2*B],
+            edges: [MaybeUninit::UNINIT; 2 * B],
         }
     }
 }

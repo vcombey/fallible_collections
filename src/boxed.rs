@@ -1,8 +1,8 @@
 //! Implement Fallible Box
 use super::TryClone;
+use alloc::alloc::{AllocRef, Layout};
 use alloc::boxed::Box;
 use alloc::collections::TryReserveError;
-use core::alloc::Layout;
 use core::borrow::Borrow;
 use core::mem::{align_of, size_of};
 
@@ -18,14 +18,15 @@ pub trait FallibleBox<T> {
 impl<T> FallibleBox<T> for Box<T> {
     fn try_new(t: T) -> Result<Self, TryReserveError> {
         let mut g = alloc::alloc::Global;
-		let layout = Layout::from_size_align(size_of::<T>(), align_of::<T>()).unwrap();
-        let ptr = unsafe {
-            core::alloc::Alloc::alloc(
-                &mut g,
+        let layout = Layout::from_size_align(size_of::<T>(), align_of::<T>()).unwrap();
+        let ptr = g
+            .alloc(layout)
+            .map_err(|_e| TryReserveError::AllocError {
                 layout,
-            ).map_err(|_e| TryReserveError::AllocError{ layout, non_exhaustive:() })?
-        }
-        .as_ptr() as *mut T;
+                non_exhaustive: (),
+            })?
+            .0
+            .as_ptr() as *mut T;
         unsafe {
             core::ptr::write(ptr, t);
             Ok(Box::from_raw(ptr))
@@ -49,4 +50,10 @@ mod tests {
         *v = 3;
         assert_eq!(*v, 3);
     }
+    // #[test]
+    // fn big_alloc() {
+    //     let layout = Layout::from_size_align(1_000_000_000_000, 8).unwrap();
+    //     let ptr = unsafe { alloc::alloc::alloc(layout) };
+    //     assert!(ptr.is_null());
+    // }
 }

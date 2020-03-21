@@ -260,9 +260,7 @@ impl<T: TryClone> TryClone for Vec<T> {
 }
 
 pub trait TryFromIterator<I>: Sized {
-    fn try_from_iterator<T: IntoIterator<Item = I>>(
-        iterator: T,
-    ) -> Result<Self, TryReserveError>;
+    fn try_from_iterator<T: IntoIterator<Item = I>>(iterator: T) -> Result<Self, TryReserveError>;
 }
 
 impl<I> TryFromIterator<I> for Vec<I> {
