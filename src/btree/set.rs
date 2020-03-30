@@ -1,7 +1,7 @@
 // This is pretty much entirely stolen from TreeSet, since BTreeMap has an identical interface
 // to TreeMap
 
-use alloc::collections::TryReserveError;
+use crate::TryReserveError;
 use core::borrow::Borrow;
 use core::cmp::max;
 use core::cmp::Ordering::{self, Equal, Greater, Less};

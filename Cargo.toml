@@ -6,6 +6,13 @@ edition = "2018"
 license = "MIT/Apache-2.0"
 
 repository = "https://github.com/vcombey/fallible_collections.git"
-description = "a crate wich add fallible allocation api to std collections"
+description = "a crate which adds fallible allocation api to std collections"
 readme = "README.md"
 keywords = ["fallible", "collections"]
+
+[dependencies]
+hashbrown = "0.7.1"
+
+[features]
+# Enable on nightly builds to allow use of unstable features
+unstable = []

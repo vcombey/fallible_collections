@@ -1,6 +1,6 @@
 //! A try_format! macro replacing format!
 use super::FallibleVec;
-use alloc::collections::TryReserveError;
+use crate::TryReserveError;
 use alloc::fmt::{Arguments, Write};
 use alloc::string::String;
 use alloc::vec::Vec;

@@ -1,7 +1,7 @@
 //! this module implements try clone for primitive rust types
 
 use super::TryClone;
-use alloc::collections::TryReserveError;
+use crate::TryReserveError;
 
 macro_rules! impl_try_clone {
     ($($e: ty),*) => {

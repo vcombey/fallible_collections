@@ -37,9 +37,9 @@ use core::ptr::{self, NonNull, Unique};
 use core::slice;
 
 use crate::boxed::FallibleBox;
+use crate::TryReserveError;
 use alloc::alloc::{AllocRef, Global, Layout};
 use alloc::boxed::Box;
-use alloc::collections::TryReserveError;
 
 const B: usize = 6;
 pub const MIN_LEN: usize = B - 1;

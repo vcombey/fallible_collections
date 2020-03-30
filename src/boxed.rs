@@ -1,10 +1,10 @@
 //! Implement Fallible Box
 use super::TryClone;
-use alloc::alloc::{AllocRef, Layout};
+use crate::TryReserveError;
+use alloc::alloc::Layout;
 use alloc::boxed::Box;
-use alloc::collections::TryReserveError;
 use core::borrow::Borrow;
-use core::mem::{align_of, size_of};
+use core::ptr::NonNull;
 
 /// trait to implement Fallible Box
 pub trait FallibleBox<T> {
@@ -15,18 +15,46 @@ pub trait FallibleBox<T> {
         Self: Sized;
 }
 
+fn alloc_err(layout: Layout) -> TryReserveError {
+    #[cfg(feature = "unstable")] // requires allocator_api
+    {
+        TryReserveError::AllocError {
+            layout,
+            non_exhaustive: (),
+        }
+    }
+    #[cfg(not(feature = "unstable"))]
+    {
+        TryReserveError::AllocErr { layout }
+    }
+}
+
+fn alloc(layout: Layout) -> Result<NonNull<u8>, TryReserveError> {
+    #[cfg(feature = "unstable")] // requires allocator_api
+    {
+        use core::alloc::AllocRef as _;
+        let mut g = alloc::alloc::Global;
+        g.alloc(layout)
+            .map_err(|_e| alloc_err(layout))
+            .map(|(ptr, _size)| ptr)
+    }
+    #[cfg(not(feature = "unstable"))]
+    {
+        // required for alloc safety
+        // See https://doc.rust-lang.org/stable/std/alloc/trait.GlobalAlloc.html#safety-1
+        if layout.size() <= 0 {
+            return Err(alloc_err(layout));
+        }
+
+        let ptr = unsafe { alloc::alloc::alloc(layout) };
+        core::ptr::NonNull::new(ptr).ok_or(TryReserveError::AllocErr { layout })
+    }
+}
+
 impl<T> FallibleBox<T> for Box<T> {
     fn try_new(t: T) -> Result<Self, TryReserveError> {
-        let mut g = alloc::alloc::Global;
-        let layout = Layout::from_size_align(size_of::<T>(), align_of::<T>()).unwrap();
-        let ptr = g
-            .alloc(layout)
-            .map_err(|_e| TryReserveError::AllocError {
-                layout,
-                non_exhaustive: (),
-            })?
-            .0
-            .as_ptr() as *mut T;
+        let layout = Layout::for_value(&t);
+        let ptr = alloc(layout)?.as_ptr() as *mut T;
         unsafe {
             core::ptr::write(ptr, t);
             Ok(Box::from_raw(ptr))
@@ -56,4 +84,13 @@ mod tests {
     //     let ptr = unsafe { alloc::alloc::alloc(layout) };
     //     assert!(ptr.is_null());
     // }
+
+    /// Zero-sized types support requires the allocator API.
+    #[test]
+    fn trybox_zst() {
+        #[cfg(feature = "unstable")]
+        assert!(Box::try_new(()).is_ok());
+        #[cfg(not(feature = "unstable"))]
+        assert!(Box::try_new(()).is_err());
+    }
 }
