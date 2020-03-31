@@ -38,10 +38,13 @@ pub trait FallibleVec<T> {
     fn try_insert(&mut self, index: usize, element: T) -> Result<(), (T, TryReserveError)>;
     /// see append
     fn try_append(&mut self, other: &mut Self) -> Result<(), TryReserveError>;
-    /// see resize, only works when the `value` implements Copy, otherwise, look at try_resize_no_clone
+    /// see resize, only works when the `value` implements Copy, otherwise, look at try_resize_no_copy
     fn try_resize(&mut self, new_len: usize, value: T) -> Result<(), TryReserveError>
     where
         T: Copy + Clone;
+    fn try_resize_with<F>(&mut self, new_len: usize, f: F) -> Result<(), TryReserveError>
+    where
+        F: FnMut() -> T;
     /// resize the vec by trying to clone the value repeatingly
     fn try_resize_no_copy(&mut self, new_len: usize, value: T) -> Result<(), TryReserveError>
     where
@@ -49,11 +52,335 @@ pub trait FallibleVec<T> {
     /// see resize, only works when the `value` implements Copy, otherwise, look at try_extend_from_slice_no_copy
     fn try_extend_from_slice(&mut self, other: &[T]) -> Result<(), TryReserveError>
     where
-        T: Copy + Clone;
+        T: Clone;
     /// extend the vec by trying to clone the value in `other`
     fn try_extend_from_slice_no_copy(&mut self, other: &[T]) -> Result<(), TryReserveError>
     where
         T: TryClone;
+}
+
+/// TryVec is a thin wrapper around alloc::vec::Vec to provide support for
+/// fallible allocation.
+///
+/// See the crate documentation for more.
+#[derive(Default, PartialEq)]
+pub struct TryVec<T> {
+    inner: Vec<T>,
+}
+
+impl<T: core::fmt::Debug> core::fmt::Debug for TryVec<T> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(f, "{:?}", self.inner)
+    }
+}
+
+impl<T> TryVec<T> {
+    pub fn new() -> Self {
+        Self { inner: Vec::new() }
+    }
+
+    pub fn with_capacity(capacity: usize) -> Result<Self, TryReserveError> {
+        Ok(Self {
+            inner: FallibleVec::try_with_capacity(capacity)?,
+        })
+    }
+
+    pub fn append(&mut self, other: &mut Self) -> Result<(), TryReserveError> {
+        FallibleVec::try_append(&mut self.inner, &mut other.inner)
+    }
+
+    pub fn as_mut_slice(&mut self) -> &mut [T] {
+        self
+    }
+
+    pub fn as_slice(&self) -> &[T] {
+        self
+    }
+
+    pub fn clear(&mut self) {
+        self.inner.clear()
+    }
+
+    #[cfg(test)]
+    pub fn into_inner(self) -> Vec<T> {
+        self.inner
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.inner.is_empty()
+    }
+
+    pub fn iter_mut(&mut self) -> IterMut<T> {
+        IterMut {
+            inner: self.inner.iter_mut(),
+        }
+    }
+
+    pub fn iter(&self) -> Iter<T> {
+        Iter {
+            inner: self.inner.iter(),
+        }
+    }
+
+    pub fn pop(&mut self) -> Option<T> {
+        self.inner.pop()
+    }
+
+    pub fn push(&mut self, value: T) -> Result<(), TryReserveError> {
+        FallibleVec::try_push(&mut self.inner, value)
+    }
+
+    pub fn reserve(&mut self, additional: usize) -> Result<(), TryReserveError> {
+        FallibleVec::try_reserve(&mut self.inner, additional)
+    }
+
+    pub fn resize_with<F>(&mut self, new_len: usize, f: F) -> Result<(), TryReserveError>
+    where
+        F: FnMut() -> T,
+    {
+        FallibleVec::try_resize_with(&mut self.inner, new_len, f)
+    }
+}
+
+impl<T: Clone> TryVec<TryVec<T>> {
+    pub fn concat(&self) -> Result<TryVec<T>, TryReserveError> {
+        let size = self.iter().map(|v| v.inner.len()).sum();
+        let mut result = TryVec::with_capacity(size)?;
+        for v in self.iter() {
+            result.extend_from_slice(&v.inner)?;
+        }
+        Ok(result)
+    }
+}
+
+impl<T: Clone> TryVec<T> {
+    pub fn extend_from_slice(&mut self, other: &[T]) -> Result<(), TryReserveError> {
+        self.inner.try_extend_from_slice(other)
+    }
+}
+
+impl<T> IntoIterator for TryVec<T> {
+    type Item = T;
+    type IntoIter = alloc::vec::IntoIter<T>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.inner.into_iter()
+    }
+}
+
+impl<'a, T> IntoIterator for &'a TryVec<T> {
+    type Item = &'a T;
+    type IntoIter = alloc::slice::Iter<'a, T>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.inner.iter()
+    }
+}
+
+#[cfg(feature = "std_io")]
+pub mod std_io {
+    use super::*;
+    use core::convert::TryInto as _;
+    use std::io::{self, Read, Take, Write};
+
+    pub trait TryRead {
+        fn try_read_to_end(&mut self, buf: &mut TryVec<u8>) -> io::Result<usize>;
+
+        fn read_into_try_vec(&mut self) -> io::Result<TryVec<u8>> {
+            let mut buf = TryVec::new();
+            self.try_read_to_end(&mut buf)?;
+            Ok(buf)
+        }
+    }
+
+    impl<T: Read> TryRead for Take<T> {
+        /// This function reserves the upper limit of what `src` can generate before
+        /// reading all bytes until EOF in this source, placing them into `buf`. If the
+        /// allocation is unsuccessful, or reading from the source generates an error
+        /// before reaching EOF, this will return an error. Otherwise, it will return
+        /// the number of bytes read.
+        ///
+        /// Since `Take::limit()` may return a value greater than the number of bytes
+        /// which can be read from the source, it's possible this function may fail
+        /// in the allocation phase even though allocating the number of bytes available
+        /// to read would have succeeded. In general, it is assumed that the callers
+        /// have accurate knowledge of the number of bytes of interest and have created
+        /// `src` accordingly.
+        fn try_read_to_end(&mut self, buf: &mut TryVec<u8>) -> io::Result<usize> {
+            try_read_up_to(self, self.limit(), buf)
+        }
+    }
+
+    /// Read up to `limit` bytes from `src`, placing them into `buf` and returning the
+    /// number of bytes read. Space for `limit` additional bytes is reserved in `buf`, so
+    /// this function will return an error if the allocation fails.
+    pub fn try_read_up_to<R: Read>(
+        src: &mut R,
+        limit: u64,
+        buf: &mut TryVec<u8>,
+    ) -> io::Result<usize> {
+        let additional = limit
+            .try_into()
+            .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
+        buf.reserve(additional)
+            .map_err(|_| io::Error::new(io::ErrorKind::Other, "reserve allocation failed"))?;
+        let bytes_read = src.take(limit).read_to_end(&mut buf.inner)?;
+        Ok(bytes_read)
+    }
+
+    impl Write for TryVec<u8> {
+        fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+            self.extend_from_slice(buf)
+                .map_err(|_| io::Error::new(io::ErrorKind::Other, "extend_from_slice failed"))?;
+            Ok(buf.len())
+        }
+
+        fn flush(&mut self) -> io::Result<()> {
+            Ok(())
+        }
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+
+        #[test]
+        fn try_read_to_end() {
+            let mut src = b"1234567890".take(5);
+            let mut buf = TryVec::new();
+            src.try_read_to_end(&mut buf).unwrap();
+            assert_eq!(buf.len(), 5);
+            assert_eq!(buf, b"12345".as_ref());
+        }
+
+        #[test]
+        fn read_into_try_vec() {
+            let mut src = b"1234567890".take(5);
+            let buf = src.read_into_try_vec().unwrap();
+            assert_eq!(buf.len(), 5);
+            assert_eq!(buf, b"12345".as_ref());
+        }
+
+        #[test]
+        fn read_into_try_vec_oom() {
+            let mut src = b"1234567890".take(core::usize::MAX.try_into().expect("usize < u64"));
+            assert!(src.read_into_try_vec().is_err());
+        }
+
+        #[test]
+        fn try_read_up_to() {
+            let src = b"1234567890";
+            let mut buf = TryVec::new();
+            super::try_read_up_to(&mut src.as_ref(), 5, &mut buf).unwrap();
+            assert_eq!(buf.len(), 5);
+            assert_eq!(buf, b"12345".as_ref());
+        }
+
+        #[test]
+        fn try_read_up_to_oom() {
+            let src = b"1234567890";
+            let mut buf = TryVec::new();
+            let limit = core::usize::MAX.try_into().expect("usize < u64");
+            let res = super::try_read_up_to(&mut src.as_ref(), limit, &mut buf);
+            assert!(res.is_err());
+        }
+    }
+}
+
+impl<T: PartialEq> PartialEq<Vec<T>> for TryVec<T> {
+    fn eq(&self, other: &Vec<T>) -> bool {
+        self.inner.eq(other)
+    }
+}
+
+impl<'a, T: PartialEq> PartialEq<&'a [T]> for TryVec<T> {
+    fn eq(&self, other: &&[T]) -> bool {
+        self.inner.eq(other)
+    }
+}
+
+impl PartialEq<&str> for TryVec<u8> {
+    fn eq(&self, other: &&str) -> bool {
+        self.as_slice() == other.as_bytes()
+    }
+}
+
+impl core::convert::AsRef<[u8]> for TryVec<u8> {
+    fn as_ref(&self) -> &[u8] {
+        self.inner.as_ref()
+    }
+}
+
+impl<T> core::convert::From<Vec<T>> for TryVec<T> {
+    fn from(value: Vec<T>) -> Self {
+        Self { inner: value }
+    }
+}
+
+impl<T: Clone> core::convert::TryFrom<&[T]> for TryVec<T> {
+    type Error = TryReserveError;
+
+    fn try_from(value: &[T]) -> Result<Self, Self::Error> {
+        let mut v = Self::new();
+        v.extend_from_slice(value)?;
+        Ok(v)
+    }
+}
+
+impl core::convert::TryFrom<&str> for TryVec<u8> {
+    type Error = TryReserveError;
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        let mut v = Self::new();
+        v.extend_from_slice(value.as_bytes())?;
+        Ok(v)
+    }
+}
+
+impl<T> core::ops::Deref for TryVec<T> {
+    type Target = [T];
+
+    fn deref(&self) -> &[T] {
+        self.inner.deref()
+    }
+}
+
+impl<T> core::ops::DerefMut for TryVec<T> {
+    fn deref_mut(&mut self) -> &mut [T] {
+        self.inner.deref_mut()
+    }
+}
+
+pub struct Iter<'a, T> {
+    inner: alloc::slice::Iter<'a, T>,
+}
+
+impl<'a, T> Iterator for Iter<'a, T> {
+    type Item = &'a T;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.inner.next()
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.inner.size_hint()
+    }
+}
+
+pub struct IterMut<'a, T> {
+    inner: alloc::slice::IterMut<'a, T>,
+}
+
+impl<'a, T> Iterator for IterMut<'a, T> {
+    type Item = &'a mut T;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.inner.next()
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.inner.size_hint()
+    }
 }
 
 #[cfg(not(feature = "unstable"))]
@@ -171,6 +498,16 @@ impl<T> FallibleVec<T> for Vec<T> {
         }
         Ok(self.resize(new_len, value))
     }
+    fn try_resize_with<F>(&mut self, new_len: usize, f: F) -> Result<(), TryReserveError>
+    where
+        F: FnMut() -> T,
+    {
+        let len = self.len();
+        if new_len > len {
+            FallibleVec::try_reserve(self, new_len - len)?;
+        }
+        Ok(self.resize_with(new_len, f))
+    }
     fn try_resize_no_copy(&mut self, new_len: usize, value: T) -> Result<(), TryReserveError>
     where
         T: TryClone,
@@ -185,7 +522,7 @@ impl<T> FallibleVec<T> for Vec<T> {
     }
     fn try_extend_from_slice(&mut self, other: &[T]) -> Result<(), TryReserveError>
     where
-        T: Copy + Clone,
+        T: Clone,
     {
         FallibleVec::try_reserve(self, other.len())?;
         Ok(self.extend_from_slice(other))
@@ -371,6 +708,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use core::convert::TryInto as _;
 
     #[test]
     #[cfg(feature = "unstable")]
@@ -399,7 +737,16 @@ mod tests {
     #[test]
     fn oom() {
         let mut vec: Vec<char> = Vec::new();
-        match FallibleVec::try_reserve(&mut vec, std::usize::MAX) {
+        match FallibleVec::try_reserve(&mut vec, core::usize::MAX) {
+            Ok(_) => panic!("it should be OOM"),
+            _ => (),
+        }
+    }
+
+    #[test]
+    fn tryvec_oom() {
+        let mut vec: TryVec<char> = TryVec::new();
+        match vec.reserve(core::usize::MAX) {
             Ok(_) => panic!("it should be OOM"),
             _ => (),
         }
@@ -416,6 +763,15 @@ mod tests {
     }
 
     #[test]
+    fn tryvec_reserve() {
+        let mut vec: TryVec<_> = vec![1].into();
+        let old_cap = vec.inner.capacity();
+        let new_cap = old_cap + 1;
+        vec.reserve(new_cap).unwrap();
+        assert!(vec.inner.capacity() >= new_cap);
+    }
+
+    #[test]
     fn try_reserve_idempotent() {
         let mut vec: Vec<_> = vec![1];
         let additional_room = vec.capacity() - vec.len();
@@ -427,9 +783,29 @@ mod tests {
     }
 
     #[test]
+    fn tryvec_reserve_idempotent() {
+        let mut vec: TryVec<_> = vec![1].into();
+        let old_cap = vec.inner.capacity();
+        let new_cap = old_cap + 1;
+        vec.reserve(new_cap).unwrap();
+        let cap_after_reserve = vec.inner.capacity();
+        vec.reserve(new_cap).unwrap();
+        assert_eq!(cap_after_reserve, vec.inner.capacity());
+    }
+
+    #[test]
     fn capacity_overflow() {
         let mut vec: Vec<_> = vec![1];
-        match FallibleVec::try_reserve(&mut vec, std::usize::MAX) {
+        match FallibleVec::try_reserve(&mut vec, core::usize::MAX) {
+            Ok(_) => panic!("capacity calculation should overflow"),
+            _ => (),
+        }
+    }
+
+    #[test]
+    fn tryvec_capacity_overflow() {
+        let mut vec: TryVec<_> = vec![1].into();
+        match vec.reserve(core::usize::MAX) {
             Ok(_) => panic!("capacity calculation should overflow"),
             _ => (),
         }
@@ -439,6 +815,13 @@ mod tests {
     fn extend_from_slice() {
         let mut vec: Vec<u8> = b"foo".as_ref().into();
         vec.try_extend_from_slice(b"bar").unwrap();
+        assert_eq!(vec, b"foobar".as_ref());
+    }
+
+    #[test]
+    fn tryvec_extend_from_slice() {
+        let mut vec: TryVec<u8> = b"foo".as_ref().try_into().unwrap();
+        vec.extend_from_slice(b"bar").unwrap();
         assert_eq!(vec, b"foobar".as_ref());
     }
 
