@@ -1,4 +1,4 @@
-use alloc::collections::TryReserveError;
+use crate::TryReserveError;
 use core::borrow::Borrow;
 use core::cmp::Ordering;
 use core::fmt::Debug;

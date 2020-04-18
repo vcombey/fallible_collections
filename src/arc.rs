@@ -2,8 +2,8 @@
 use super::FallibleBox;
 use super::TryClone;
 
+use crate::TryReserveError;
 use alloc::boxed::Box;
-use alloc::collections::TryReserveError;
 use alloc::sync::Arc;
 
 /// trait to implement Fallible Arc
@@ -25,7 +25,7 @@ impl<T> FallibleArc<T> for Arc<T> {
 
 /// Just a TryClone boilerplate for Arc
 impl<T: ?Sized> TryClone for Arc<T> {
-    fn try_clone(&self) -> Result<Self, alloc::collections::TryReserveError> {
+    fn try_clone(&self) -> Result<Self, TryReserveError> {
         Ok(self.clone())
     }
 }

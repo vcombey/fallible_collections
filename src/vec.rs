@@ -1,8 +1,11 @@
 //! Implement Fallible Vec
 use super::TryClone;
-use alloc::collections::TryReserveError;
+use crate::TryReserveError;
+#[cfg(not(feature = "unstable"))]
+use alloc::alloc::{alloc, realloc, Layout};
 use alloc::vec::Vec;
 
+#[cfg(feature = "unstable")]
 #[macro_export]
 /// macro trying to create a vec, return a
 /// Result<Vec<T>,TryReserveError>
@@ -53,16 +56,88 @@ pub trait FallibleVec<T> {
         T: TryClone;
 }
 
+#[cfg(not(feature = "unstable"))]
+fn vec_try_reserve<T>(v: &mut Vec<T>, additional: usize) -> Result<(), TryReserveError> {
+    let available = v.capacity().checked_sub(v.len()).expect("capacity >= len");
+    if additional > available {
+        let increase = additional
+            .checked_sub(available)
+            .expect("additional > available");
+        let new_cap = v
+            .capacity()
+            .checked_add(increase)
+            .ok_or(TryReserveError::CapacityOverflow)?;
+        vec_try_extend(v, new_cap)?;
+        debug_assert!(v.capacity() == new_cap);
+    }
+
+    Ok(())
+}
+
+#[cfg(not(feature = "unstable"))]
+fn vec_try_extend<T>(v: &mut Vec<T>, new_cap: usize) -> Result<(), TryReserveError> {
+    let old_len = v.len();
+    let old_cap: usize = v.capacity();
+
+    if old_cap >= new_cap {
+        return Ok(());
+    }
+
+    let elem_size = core::mem::size_of::<T>();
+    let new_alloc_size = new_cap
+        .checked_mul(elem_size)
+        .ok_or(TryReserveError::CapacityOverflow)?;
+
+    // required for alloc safety
+    // See https://doc.rust-lang.org/stable/std/alloc/trait.GlobalAlloc.html#safety-1
+    // Should be unreachable given prior `old_cap >= new_cap` check.
+    assert!(new_alloc_size > 0);
+
+    let align = core::mem::align_of::<T>();
+
+    let (new_ptr, layout) = {
+        if old_cap == 0 {
+            let layout = Layout::from_size_align(new_alloc_size, align).expect("Invalid layout");
+            let new_ptr = unsafe { alloc(layout) };
+            (new_ptr, layout)
+        } else {
+            let old_alloc_size = old_cap
+                .checked_mul(elem_size)
+                .ok_or(TryReserveError::CapacityOverflow)?;
+            let layout = Layout::from_size_align(old_alloc_size, align).expect("Invalid layout");
+            let new_ptr = unsafe { realloc(v.as_mut_ptr() as *mut u8, layout, new_alloc_size) };
+            (new_ptr, layout)
+        }
+    };
+
+    if new_ptr.is_null() {
+        return Err(TryReserveError::AllocErr { layout });
+    }
+
+    let new_vec = unsafe { Vec::from_raw_parts(new_ptr.cast(), old_len, new_cap) };
+
+    core::mem::forget(core::mem::replace(v, new_vec));
+    Ok(())
+}
+
 impl<T> FallibleVec<T> for Vec<T> {
     fn try_reserve(&mut self, additional: usize) -> Result<(), TryReserveError> {
-        self.try_reserve(additional)
+        #[cfg(feature = "unstable")]
+        {
+            self.try_reserve(additional)
+        }
+
+        #[cfg(not(feature = "unstable"))]
+        {
+            vec_try_reserve(self, additional)
+        }
     }
     fn try_push(&mut self, elem: T) -> Result<(), TryReserveError> {
-        self.try_reserve(1)?;
+        FallibleVec::try_reserve(self, 1)?;
         Ok(self.push(elem))
     }
     fn try_push_give_back(&mut self, elem: T) -> Result<(), (T, TryReserveError)> {
-        if let Err(e) = self.try_reserve(1) {
+        if let Err(e) = FallibleVec::try_reserve(self, 1) {
             return Err((elem, e));
         }
         Ok(self.push(elem))
@@ -72,18 +147,18 @@ impl<T> FallibleVec<T> for Vec<T> {
         Self: core::marker::Sized,
     {
         let mut n = Self::new();
-        n.try_reserve(capacity)?;
+        FallibleVec::try_reserve(&mut n, capacity)?;
         Ok(n)
     }
 
     fn try_insert(&mut self, index: usize, element: T) -> Result<(), (T, TryReserveError)> {
-        if let Err(e) = self.try_reserve(1) {
+        if let Err(e) = FallibleVec::try_reserve(self, 1) {
             return Err((element, e));
         }
         Ok(self.insert(index, element))
     }
     fn try_append(&mut self, other: &mut Self) -> Result<(), TryReserveError> {
-        self.try_reserve(other.len())?;
+        FallibleVec::try_reserve(self, other.len())?;
         Ok(self.append(other))
     }
     fn try_resize(&mut self, new_len: usize, value: T) -> Result<(), TryReserveError>
@@ -92,7 +167,7 @@ impl<T> FallibleVec<T> for Vec<T> {
     {
         let len = self.len();
         if new_len > len {
-            self.try_reserve(new_len - len)?;
+            FallibleVec::try_reserve(self, new_len - len)?;
         }
         Ok(self.resize(new_len, value))
     }
@@ -112,7 +187,7 @@ impl<T> FallibleVec<T> for Vec<T> {
     where
         T: Copy + Clone,
     {
-        self.try_reserve(other.len())?;
+        FallibleVec::try_reserve(self, other.len())?;
         Ok(self.extend_from_slice(other))
     }
     fn try_extend_from_slice_no_copy(&mut self, other: &[T]) -> Result<(), TryReserveError>
@@ -120,7 +195,7 @@ impl<T> FallibleVec<T> for Vec<T> {
         T: TryClone,
     {
         let mut len = self.len();
-        self.try_reserve(other.len())?;
+        FallibleVec::try_reserve(self, other.len())?;
         let mut iterator = other.iter();
         while let Some(element) = iterator.next() {
             unsafe {
@@ -164,7 +239,7 @@ impl<T> TryExtend<T> for Vec<T> {
         n: usize,
         mut value: E,
     ) -> Result<(), TryReserveError> {
-        self.try_reserve(n)?;
+        FallibleVec::try_reserve(self, n)?;
 
         unsafe {
             let mut ptr = self.as_mut_ptr().add(self.len());
@@ -219,15 +294,18 @@ impl<T> Truncate for Vec<T> {
 }
 
 /// try creating a vec from an `elem` cloned `n` times, see std::from_elem
+#[cfg(feature = "unstable")]
 pub fn try_from_elem<T: TryClone>(elem: T, n: usize) -> Result<Vec<T>, TryReserveError> {
     <T as SpecFromElem>::try_from_elem(elem, n)
 }
 
 // Specialization trait used for Vec::from_elem
+#[cfg(feature = "unstable")]
 trait SpecFromElem: Sized {
     fn try_from_elem(elem: Self, n: usize) -> Result<Vec<Self>, TryReserveError>;
 }
 
+#[cfg(feature = "unstable")]
 impl<T: TryClone> SpecFromElem for T {
     default fn try_from_elem(elem: Self, n: usize) -> Result<Vec<T>, TryReserveError> {
         let mut v = Vec::new();
@@ -236,6 +314,7 @@ impl<T: TryClone> SpecFromElem for T {
     }
 }
 
+#[cfg(feature = "unstable")]
 impl SpecFromElem for u8 {
     #[inline]
     fn try_from_elem(elem: u8, n: usize) -> Result<Vec<u8>, TryReserveError> {
@@ -292,7 +371,9 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+
     #[test]
+    #[cfg(feature = "unstable")]
     fn vec() {
         // let v: Vec<u8> = from_elem(1, 10);
         let v: Vec<Vec<u8>> = try_vec![try_vec![42; 10].unwrap(); 100].unwrap();
@@ -301,6 +382,7 @@ mod tests {
         println!("{:?}", v2);
         assert_eq!(2 + 2, 4);
     }
+
     #[test]
     fn try_clone_vec() {
         // let v: Vec<u8> = from_elem(1, 10);
@@ -313,4 +395,65 @@ mod tests {
     //     let v = try_vec![42_u8; 1000000000];
     //     assert_eq!(v.try_clone().unwrap(), v);
     // }
+
+    #[test]
+    fn oom() {
+        let mut vec: Vec<char> = Vec::new();
+        match FallibleVec::try_reserve(&mut vec, std::usize::MAX) {
+            Ok(_) => panic!("it should be OOM"),
+            _ => (),
+        }
+    }
+
+    #[test]
+    fn try_reserve() {
+        let mut vec: Vec<_> = vec![1];
+        let additional_room = vec.capacity() - vec.len();
+        let additional = additional_room + 1;
+        let old_cap = vec.capacity();
+        FallibleVec::try_reserve(&mut vec, additional).unwrap();
+        assert!(vec.capacity() > old_cap);
+    }
+
+    #[test]
+    fn try_reserve_idempotent() {
+        let mut vec: Vec<_> = vec![1];
+        let additional_room = vec.capacity() - vec.len();
+        let additional = additional_room + 1;
+        FallibleVec::try_reserve(&mut vec, additional).unwrap();
+        let cap_after_reserve = vec.capacity();
+        FallibleVec::try_reserve(&mut vec, additional).unwrap();
+        assert_eq!(vec.capacity(), cap_after_reserve);
+    }
+
+    #[test]
+    fn capacity_overflow() {
+        let mut vec: Vec<_> = vec![1];
+        match FallibleVec::try_reserve(&mut vec, std::usize::MAX) {
+            Ok(_) => panic!("capacity calculation should overflow"),
+            _ => (),
+        }
+    }
+
+    #[test]
+    fn extend_from_slice() {
+        let mut vec: Vec<u8> = b"foo".as_ref().into();
+        vec.try_extend_from_slice(b"bar").unwrap();
+        assert_eq!(vec, b"foobar".as_ref());
+    }
+
+    #[test]
+    #[cfg(not(feature = "unstable"))]
+    fn try_extend_zst() {
+        let mut vec: Vec<()> = Vec::new();
+        assert_eq!(vec.capacity(), core::usize::MAX);
+        assert!(vec_try_extend(&mut vec, 10).is_ok());
+        assert!(vec_try_extend(&mut vec, core::usize::MAX).is_ok());
+    }
+
+    #[test]
+    fn try_reserve_zst() {
+        let mut vec: Vec<()> = Vec::new();
+        assert!(FallibleVec::try_reserve(&mut vec, core::usize::MAX).is_ok());
+    }
 }

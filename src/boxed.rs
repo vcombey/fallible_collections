@@ -1,10 +1,10 @@
 //! Implement Fallible Box
 use super::TryClone;
-use alloc::alloc::{AllocRef, Layout};
+use crate::TryReserveError;
+use alloc::alloc::Layout;
 use alloc::boxed::Box;
-use alloc::collections::TryReserveError;
 use core::borrow::Borrow;
-use core::mem::{align_of, size_of};
+use core::ptr::NonNull;
 
 /// trait to implement Fallible Box
 pub trait FallibleBox<T> {
@@ -15,18 +15,39 @@ pub trait FallibleBox<T> {
         Self: Sized;
 }
 
-impl<T> FallibleBox<T> for Box<T> {
-    fn try_new(t: T) -> Result<Self, TryReserveError> {
+fn alloc(layout: Layout) -> Result<NonNull<u8>, TryReserveError> {
+    #[cfg(feature = "unstable")] // requires allocator_api
+    {
+        use core::alloc::AllocRef as _;
         let mut g = alloc::alloc::Global;
-        let layout = Layout::from_size_align(size_of::<T>(), align_of::<T>()).unwrap();
-        let ptr = g
-            .alloc(layout)
+        g.alloc(layout)
             .map_err(|_e| TryReserveError::AllocError {
                 layout,
                 non_exhaustive: (),
-            })?
-            .0
-            .as_ptr() as *mut T;
+            })
+            .map(|(ptr, _size)| ptr)
+    }
+    #[cfg(not(feature = "unstable"))]
+    {
+        match layout.size() {
+            0 => {
+                // Required for alloc safety
+                // See https://doc.rust-lang.org/stable/std/alloc/trait.GlobalAlloc.html#safety-1
+                Ok(NonNull::dangling())
+            }
+            1..=core::usize::MAX => {
+                let ptr = unsafe { alloc::alloc::alloc(layout) };
+                core::ptr::NonNull::new(ptr).ok_or(TryReserveError::AllocErr { layout })
+            }
+            _ => unreachable!("size must be non-negative"),
+        }
+    }
+}
+
+impl<T> FallibleBox<T> for Box<T> {
+    fn try_new(t: T) -> Result<Self, TryReserveError> {
+        let layout = Layout::for_value(&t);
+        let ptr = alloc(layout)?.as_ptr() as *mut T;
         unsafe {
             core::ptr::write(ptr, t);
             Ok(Box::from_raw(ptr))
@@ -56,4 +77,10 @@ mod tests {
     //     let ptr = unsafe { alloc::alloc::alloc(layout) };
     //     assert!(ptr.is_null());
     // }
+
+    #[test]
+    fn trybox_zst() {
+        let b = Box::try_new(()).expect("ok");
+        assert_eq!(b, Box::new(()));
+    }
 }

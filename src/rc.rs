@@ -1,7 +1,7 @@
 //! Implement a Fallible Rc
 use super::FallibleBox;
+use crate::TryReserveError;
 use alloc::boxed::Box;
-use alloc::collections::TryReserveError;
 use alloc::rc::Rc;
 /// trait to implement Fallible Rc
 pub trait FallibleRc<T> {
