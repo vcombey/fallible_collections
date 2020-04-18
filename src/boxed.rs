@@ -43,6 +43,13 @@ impl<T> TryBox<T> {
     }
 }
 
+impl<T: TryClone> TryClone for TryBox<T> {
+    fn try_clone(&self) -> Result<Self, TryReserveError> {
+        let clone: T = (*self.inner).try_clone()?;
+        Self::try_new(clone)
+    }
+}
+
 fn alloc(layout: Layout) -> Result<NonNull<u8>, TryReserveError> {
     #[cfg(feature = "unstable")] // requires allocator_api
     {

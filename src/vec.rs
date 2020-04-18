@@ -4,6 +4,7 @@ use crate::TryReserveError;
 #[cfg(not(feature = "unstable"))]
 use alloc::alloc::{alloc, realloc, Layout};
 use alloc::vec::Vec;
+use core::convert::TryInto as _;
 
 #[cfg(feature = "unstable")]
 #[macro_export]
@@ -142,6 +143,12 @@ impl<T> TryVec<T> {
     }
 }
 
+impl<T: TryClone> TryClone for TryVec<T> {
+    fn try_clone(&self) -> Result<Self, TryReserveError> {
+        self.as_slice().try_into()
+    }
+}
+
 impl<T: TryClone> TryVec<TryVec<T>> {
     pub fn concat(&self) -> Result<TryVec<T>, TryReserveError> {
         let size = self.iter().map(|v| v.inner.len()).sum();
@@ -180,7 +187,6 @@ impl<'a, T> IntoIterator for &'a TryVec<T> {
 #[cfg(feature = "std_io")]
 pub mod std_io {
     use super::*;
-    use core::convert::TryInto as _;
     use std::io::{self, Read, Take, Write};
 
     pub trait TryRead {
@@ -708,7 +714,6 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use core::convert::TryInto as _;
 
     #[test]
     #[cfg(feature = "unstable")]

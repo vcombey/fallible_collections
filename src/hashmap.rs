@@ -1,19 +1,31 @@
 //! Implement Fallible HashMap
+use super::TryClone;
 use crate::TryReserveError;
+use core::default::Default;
 use core::hash::Hash;
+
+#[cfg(feature = "unstable")]
+type HashMap<K, V> = std::collections::HashMap<K, V>;
+#[cfg(not(feature = "unstable"))]
+type HashMap<K, V> = hashbrown::hash_map::HashMap<K, V>;
 
 #[derive(Default)]
 pub struct TryHashMap<K, V> {
-    #[cfg(feature = "unstable")]
-    inner: std::collections::HashMap<K, V>,
-    #[cfg(not(feature = "unstable"))]
-    inner: hashbrown::hash_map::HashMap<K, V>,
+    inner: HashMap<K, V>,
 }
 
 impl<K, V> TryHashMap<K, V>
 where
     K: Eq + Hash,
 {
+    pub fn with_capacity(capacity: usize) -> Result<Self, TryReserveError> {
+        let mut map = Self {
+            inner: HashMap::new(),
+        };
+        map.reserve(capacity)?;
+        Ok(map)
+    }
+
     pub fn get<Q: ?Sized>(&self, k: &Q) -> Option<&V>
     where
         K: core::borrow::Borrow<Q>,
@@ -29,6 +41,22 @@ where
 
     fn reserve(&mut self, additional: usize) -> Result<(), TryReserveError> {
         self.inner.try_reserve(additional)
+    }
+}
+
+impl<K, V> TryClone for TryHashMap<K, V>
+where
+    K: Eq + Hash + TryClone,
+    V: TryClone,
+{
+    fn try_clone(&self) -> Result<Self, TryReserveError> {
+        let mut clone = Self::with_capacity(self.inner.len())?;
+
+        for (key, value) in self.inner.iter() {
+            clone.insert(key.try_clone()?, value.try_clone()?)?;
+        }
+
+        Ok(clone)
     }
 }
 
