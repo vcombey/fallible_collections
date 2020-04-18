@@ -408,21 +408,22 @@ mod tests {
     #[test]
     fn try_reserve() {
         let mut vec: Vec<_> = vec![1];
+        let additional_room = vec.capacity() - vec.len();
+        let additional = additional_room + 1;
         let old_cap = vec.capacity();
-        let new_cap = old_cap + 1;
-        FallibleVec::try_reserve(&mut vec, new_cap).unwrap();
-        assert!(vec.capacity() >= new_cap);
+        FallibleVec::try_reserve(&mut vec, additional).unwrap();
+        assert!(vec.capacity() > old_cap);
     }
 
     #[test]
     fn try_reserve_idempotent() {
         let mut vec: Vec<_> = vec![1];
-        let old_cap = vec.capacity();
-        let new_cap = old_cap + 1;
-        FallibleVec::try_reserve(&mut vec, new_cap).unwrap();
+        let additional_room = vec.capacity() - vec.len();
+        let additional = additional_room + 1;
+        FallibleVec::try_reserve(&mut vec, additional).unwrap();
         let cap_after_reserve = vec.capacity();
-        FallibleVec::try_reserve(&mut vec, new_cap).unwrap();
-        assert_eq!(cap_after_reserve, vec.capacity());
+        FallibleVec::try_reserve(&mut vec, additional).unwrap();
+        assert_eq!(vec.capacity(), cap_after_reserve);
     }
 
     #[test]
@@ -439,5 +440,20 @@ mod tests {
         let mut vec: Vec<u8> = b"foo".as_ref().into();
         vec.try_extend_from_slice(b"bar").unwrap();
         assert_eq!(vec, b"foobar".as_ref());
+    }
+
+    #[test]
+    #[cfg(not(feature = "unstable"))]
+    fn try_extend_zst() {
+        let mut vec: Vec<()> = Vec::new();
+        assert_eq!(vec.capacity(), core::usize::MAX);
+        assert!(vec_try_extend(&mut vec, 10).is_ok());
+        assert!(vec_try_extend(&mut vec, core::usize::MAX).is_ok());
+    }
+
+    #[test]
+    fn try_reserve_zst() {
+        let mut vec: Vec<()> = Vec::new();
+        assert!(FallibleVec::try_reserve(&mut vec, core::usize::MAX).is_ok());
     }
 }
