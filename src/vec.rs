@@ -52,7 +52,7 @@ pub trait FallibleVec<T> {
     /// see resize, only works when the `value` implements Copy, otherwise, look at try_extend_from_slice_no_copy
     fn try_extend_from_slice(&mut self, other: &[T]) -> Result<(), TryReserveError>
     where
-        T: Clone;
+        T: Copy + Clone;
     /// extend the vec by trying to clone the value in `other`
     fn try_extend_from_slice_no_copy(&mut self, other: &[T]) -> Result<(), TryReserveError>
     where
@@ -142,20 +142,20 @@ impl<T> TryVec<T> {
     }
 }
 
-impl<T: Clone> TryVec<TryVec<T>> {
+impl<T: TryClone> TryVec<TryVec<T>> {
     pub fn concat(&self) -> Result<TryVec<T>, TryReserveError> {
         let size = self.iter().map(|v| v.inner.len()).sum();
         let mut result = TryVec::with_capacity(size)?;
         for v in self.iter() {
-            result.extend_from_slice(&v.inner)?;
+            result.inner.try_extend_from_slice_no_copy(&v.inner)?;
         }
         Ok(result)
     }
 }
 
-impl<T: Clone> TryVec<T> {
+impl<T: TryClone> TryVec<T> {
     pub fn extend_from_slice(&mut self, other: &[T]) -> Result<(), TryReserveError> {
-        self.inner.try_extend_from_slice(other)
+        self.inner.try_extend_from_slice_no_copy(other)
     }
 }
 
@@ -317,12 +317,12 @@ impl<T> core::convert::From<Vec<T>> for TryVec<T> {
     }
 }
 
-impl<T: Clone> core::convert::TryFrom<&[T]> for TryVec<T> {
+impl<T: TryClone> core::convert::TryFrom<&[T]> for TryVec<T> {
     type Error = TryReserveError;
 
     fn try_from(value: &[T]) -> Result<Self, Self::Error> {
         let mut v = Self::new();
-        v.extend_from_slice(value)?;
+        v.inner.try_extend_from_slice_no_copy(value)?;
         Ok(v)
     }
 }

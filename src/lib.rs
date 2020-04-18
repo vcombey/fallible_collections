@@ -71,7 +71,7 @@ pub use vec::std_io::*;
 /// assert_eq!(vec.try_clone().unwrap(), vec)
 /// ```
 pub trait TryClone {
-    /// try clone method, (Self must be size because of Result
+    /// try clone method, (Self must be sized because of Result
     /// constraint)
     fn try_clone(&self) -> Result<Self, TryReserveError>
     where
