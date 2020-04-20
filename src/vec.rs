@@ -733,6 +733,23 @@ mod tests {
         assert_eq!(v.try_clone().unwrap(), v);
     }
 
+    #[test]
+    fn try_clone_oom() {
+        let layout = Layout::new::<u8>();
+        let v =
+            unsafe { Vec::<u8>::from_raw_parts(alloc(layout), core::usize::MAX, core::usize::MAX) };
+        assert!(v.try_clone().is_err());
+    }
+
+    #[test]
+    fn tryvec_try_clone_oom() {
+        let layout = Layout::new::<u8>();
+        let inner =
+            unsafe { Vec::<u8>::from_raw_parts(alloc(layout), core::usize::MAX, core::usize::MAX) };
+        let tv = TryVec { inner };
+        assert!(tv.try_clone().is_err());
+    }
+
     // #[test]
     // fn try_out_of_mem() {
     //     let v = try_vec![42_u8; 1000000000];
