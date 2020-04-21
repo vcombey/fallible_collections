@@ -4,9 +4,6 @@ use crate::TryReserveError;
 use core::default::Default;
 use core::hash::Hash;
 
-#[cfg(feature = "unstable")]
-type HashMap<K, V> = std::collections::HashMap<K, V>;
-#[cfg(not(feature = "unstable"))]
 type HashMap<K, V> = hashbrown::hash_map::HashMap<K, V>;
 
 #[derive(Default)]

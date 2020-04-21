@@ -55,12 +55,12 @@ fn alloc(layout: Layout) -> Result<NonNull<u8>, TryReserveError> {
     {
         use core::alloc::AllocRef as _;
         let mut g = alloc::alloc::Global;
-        g.alloc(layout)
+        g.alloc(layout, alloc::alloc::AllocInit::Uninitialized)
             .map_err(|_e| TryReserveError::AllocError {
                 layout,
                 non_exhaustive: (),
             })
-            .map(|(ptr, _size)| ptr)
+            .map(|memory_block| memory_block.ptr)
     }
     #[cfg(not(feature = "unstable"))]
     {
