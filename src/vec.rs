@@ -1,7 +1,7 @@
 //! Implement Fallible Vec
 use super::TryClone;
 use crate::TryReserveError;
-#[cfg(not(feature = "unstable"))]
+#[allow(unused_imports)]
 use alloc::alloc::{alloc, realloc, Layout};
 use alloc::vec::Vec;
 use core::convert::TryInto as _;

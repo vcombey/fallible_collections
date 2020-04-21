@@ -47,7 +47,9 @@ pub mod arc;
 pub use arc::*;
 #[cfg(feature = "unstable")]
 pub mod btree;
+#[cfg(not(feature = "unstable"))]
 pub mod hashmap;
+#[cfg(not(feature = "unstable"))]
 pub use hashmap::*;
 #[macro_use]
 pub mod format;
