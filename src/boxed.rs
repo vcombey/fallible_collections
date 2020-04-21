@@ -14,6 +14,41 @@ pub trait FallibleBox<T> {
     where
         Self: Sized;
 }
+/// TryBox is a thin wrapper around alloc::boxed::Box to provide support for
+/// fallible allocation.
+///
+/// See the crate documentation for more.
+pub struct TryBox<T> {
+    inner: Box<T>,
+}
+
+impl<T> TryBox<T> {
+    pub fn try_new(t: T) -> Result<Self, TryReserveError> {
+        Ok(Self {
+            inner: Box::try_new(t)?,
+        })
+    }
+
+    pub fn into_raw(b: TryBox<T>) -> *mut T {
+        Box::into_raw(b.inner)
+    }
+
+    /// # Safety
+    ///
+    /// See std::boxed::from_raw
+    pub unsafe fn from_raw(raw: *mut T) -> Self {
+        Self {
+            inner: Box::from_raw(raw),
+        }
+    }
+}
+
+impl<T: TryClone> TryClone for TryBox<T> {
+    fn try_clone(&self) -> Result<Self, TryReserveError> {
+        let clone: T = (*self.inner).try_clone()?;
+        Self::try_new(clone)
+    }
+}
 
 fn alloc(layout: Layout) -> Result<NonNull<u8>, TryReserveError> {
     #[cfg(feature = "unstable")] // requires allocator_api

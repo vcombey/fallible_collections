@@ -16,3 +16,5 @@ hashbrown = "0.7.1"
 [features]
 # Enable on nightly builds to allow use of unstable features
 unstable = []
+# Functionality based on std::io types
+std_io = []
