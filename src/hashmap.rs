@@ -37,6 +37,10 @@ where
         Ok(self.inner.insert(k, v))
     }
 
+    pub fn len(&self) -> usize {
+        self.inner.len()
+    }
+
     pub fn remove<Q: ?Sized>(&mut self, k: &Q) -> Option<V>
     where
         K: Borrow<Q>,
