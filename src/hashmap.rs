@@ -37,6 +37,10 @@ where
         Ok(self.inner.insert(k, v))
     }
 
+    pub fn iter(&self) -> hashbrown::hash_map::Iter<'_, K, V> {
+        self.inner.iter()
+    }
+
     pub fn remove<Q: ?Sized>(&mut self, k: &Q) -> Option<V>
     where
         K: Borrow<Q>,
@@ -47,6 +51,15 @@ where
 
     fn reserve(&mut self, additional: usize) -> Result<(), TryReserveError> {
         self.inner.try_reserve(additional)
+    }
+}
+
+impl<K, V> IntoIterator for TryHashMap<K, V> {
+    type Item = (K, V);
+    type IntoIter = hashbrown::hash_map::IntoIter<K, V>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.inner.into_iter()
     }
 }
 
