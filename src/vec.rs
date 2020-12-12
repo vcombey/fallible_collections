@@ -79,7 +79,7 @@ impl<T> Default for TryVec<T> {
 
 impl<T: core::fmt::Debug> core::fmt::Debug for TryVec<T> {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        write!(f, "{:?}", self.inner)
+        self.inner.fmt(f)
     }
 }
 
