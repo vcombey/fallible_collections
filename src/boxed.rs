@@ -23,12 +23,14 @@ pub struct TryBox<T> {
 }
 
 impl<T> TryBox<T> {
+    #[inline]
     pub fn try_new(t: T) -> Result<Self, TryReserveError> {
         Ok(Self {
             inner: Box::try_new(t)?,
         })
     }
 
+    #[inline(always)]
     pub fn into_raw(b: TryBox<T>) -> *mut T {
         Box::into_raw(b.inner)
     }
@@ -36,6 +38,7 @@ impl<T> TryBox<T> {
     /// # Safety
     ///
     /// See std::boxed::from_raw
+    #[inline(always)]
     pub unsafe fn from_raw(raw: *mut T) -> Self {
         Self {
             inner: Box::from_raw(raw),
@@ -91,6 +94,7 @@ impl<T> FallibleBox<T> for Box<T> {
 }
 
 impl<T: TryClone> TryClone for Box<T> {
+    #[inline]
     fn try_clone(&self) -> Result<Self, TryReserveError> {
         Self::try_new(Borrow::<T>::borrow(self).try_clone()?)
     }
