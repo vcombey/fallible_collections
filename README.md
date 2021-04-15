@@ -33,7 +33,7 @@ use fallible_collections::FallibleBox;
 
 fn main() {
 	// this crate an Ordinary box but return an error on allocation failure
-	let mut a = Box::try_new(5).unwrap();
+	let mut a = <Box<_> as FallibleBox<_>>::try_new(5).unwrap();
 	let mut b = Box::new(5);
 
 	assert_eq!(a, b);

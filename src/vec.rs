@@ -717,7 +717,7 @@ impl SpecFromElem for u8 {
     #[inline]
     fn try_from_elem(elem: u8, n: usize) -> Result<Vec<u8>, TryReserveError> {
         unsafe {
-            let mut v = Vec::try_with_capacity(n)?;
+            let mut v = FallibleVec::try_with_capacity(n)?;
             core::ptr::write_bytes(v.as_mut_ptr(), elem, n);
             v.set_len(n);
             Ok(v)
