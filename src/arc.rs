@@ -18,11 +18,13 @@ pub trait FallibleArc<T> {
     where
         Self: Sized;
 }
+
+#[allow(deprecated)]
 impl<T> FallibleArc<T> for Arc<T> {
     fn try_new(t: T) -> Result<Self, TryReserveError> {
         // doesn't work as the inner variable of arc are also stocked in the box
 
-        let b = Box::try_new(t)?;
+        let b = <Box<T> as FallibleBox<T>>::try_new(t)?;
         Ok(Arc::from(b))
     }
 }
