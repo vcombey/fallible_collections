@@ -3,13 +3,29 @@ use super::TryClone;
 use crate::TryReserveError;
 use core::borrow::Borrow;
 use core::default::Default;
+use core::fmt::Debug;
 use core::hash::Hash;
 
 type HashMap<K, V> = hashbrown::hash_map::HashMap<K, V>;
 
-#[derive(Default)]
 pub struct TryHashMap<K, V> {
     inner: HashMap<K, V>,
+}
+
+impl<K, V> Default for TryHashMap<K, V> {
+    #[inline(always)]
+    fn default() -> Self {
+        Self {
+            inner: Default::default(),
+        }
+    }
+}
+
+impl<K: Debug, V: Debug> Debug for TryHashMap<K, V> {
+    #[inline]
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        self.inner.fmt(f)
+    }
 }
 
 impl<K, V> TryHashMap<K, V>
