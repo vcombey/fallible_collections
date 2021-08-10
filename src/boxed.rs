@@ -4,6 +4,7 @@ use crate::TryReserveError;
 use alloc::alloc::Layout;
 use alloc::boxed::Box;
 use core::borrow::Borrow;
+use core::ops::Deref;
 use core::ptr::NonNull;
 
 /// trait to implement Fallible Box
@@ -50,6 +51,15 @@ impl<T: TryClone> TryClone for TryBox<T> {
     fn try_clone(&self) -> Result<Self, TryReserveError> {
         let clone: T = (*self.inner).try_clone()?;
         Self::try_new(clone)
+    }
+}
+
+impl<T> Deref for TryBox<T> {
+    type Target = T;
+
+    #[inline(always)]
+    fn deref(&self) -> &T {
+        self.inner.deref()
     }
 }
 
@@ -121,5 +131,20 @@ mod tests {
     fn trybox_zst() {
         let b = <Box<_> as FallibleBox<_>>::try_new(()).expect("ok");
         assert_eq!(b, Box::new(()));
+    }
+
+    struct NonCopyType;
+
+    #[test]
+    fn trybox_deref() {
+        let try_box: TryBox<NonCopyType> = TryBox::try_new(NonCopyType {}).unwrap();
+        let _derefed: &NonCopyType = try_box.deref();
+    }
+
+    #[test]
+    fn trybox_as_deref() {
+        let try_box_option: Option<TryBox<NonCopyType>> =
+            Some(TryBox::try_new(NonCopyType).unwrap());
+        let _ref_option: Option<&NonCopyType> = try_box_option.as_deref();
     }
 }
