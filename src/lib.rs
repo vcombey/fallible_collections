@@ -23,7 +23,7 @@
 
 #![cfg_attr(not(test), no_std)]
 #![cfg_attr(feature = "unstable", feature(try_reserve))]
-#![cfg_attr(feature = "unstable", feature(specialization))]
+#![cfg_attr(feature = "unstable", feature(min_specialization))]
 #![cfg_attr(feature = "unstable", feature(allocator_api))]
 #![cfg_attr(feature = "unstable", feature(dropck_eyepatch))]
 #![cfg_attr(feature = "unstable", feature(ptr_internals))]
@@ -31,7 +31,7 @@
 #![cfg_attr(feature = "unstable", feature(maybe_uninit_ref))]
 #![cfg_attr(feature = "unstable", feature(maybe_uninit_slice))]
 #![cfg_attr(feature = "unstable", feature(maybe_uninit_extra))]
-#![cfg_attr(feature = "unstable", feature(internal_uninit_const))]
+#![cfg_attr(feature = "unstable", feature(maybe_uninit_uninit_array))]
 extern crate alloc;
 #[cfg(feature = "std_io")]
 extern crate std;

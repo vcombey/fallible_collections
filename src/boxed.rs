@@ -66,14 +66,14 @@ impl<T> Deref for TryBox<T> {
 fn alloc(layout: Layout) -> Result<NonNull<u8>, TryReserveError> {
     #[cfg(feature = "unstable")] // requires allocator_api
     {
-        use core::alloc::AllocRef as _;
-        let mut g = alloc::alloc::Global;
-        g.alloc(layout, alloc::alloc::AllocInit::Uninitialized)
+        use core::alloc::Allocator;
+        alloc::alloc::Global
+            .allocate(layout)
             .map_err(|_e| TryReserveError::AllocError {
                 layout,
                 non_exhaustive: (),
             })
-            .map(|memory_block| memory_block.ptr)
+            .map(|v| v.cast())
     }
     #[cfg(not(feature = "unstable"))]
     {
