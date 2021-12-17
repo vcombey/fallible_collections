@@ -17,4 +17,8 @@ hashbrown = "0.11.2"
 # Enable on nightly builds to allow use of unstable features
 unstable = []
 # Functionality based on std::io types
-std_io = []
+std_io = ["std"]
+# Allow use of std
+std = []
+# Use fallible functions added in Rust 1.57
+rust_1_57 = []
