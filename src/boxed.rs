@@ -71,6 +71,7 @@ fn alloc(layout: Layout) -> Result<NonNull<u8>, TryReserveError> {
             .allocate(layout)
             .map_err(|_e| TryReserveError::AllocError {
                 layout,
+                #[cfg(not(feature = "rust_1_57"))]
                 non_exhaustive: (),
             })
             .map(|v| v.cast())
