@@ -824,7 +824,7 @@ mod tests {
     fn try_clone_oom() {
         let layout = Layout::new::<u8>();
         let v =
-            unsafe { Vec::<u8>::from_raw_parts(alloc(layout), core::usize::MAX, core::usize::MAX) };
+            unsafe { Vec::<u8>::from_raw_parts(alloc(layout), core::isize::MAX as usize, core::isize::MAX as usize) };
         assert!(v.try_clone().is_err());
     }
 
@@ -832,7 +832,7 @@ mod tests {
     fn tryvec_try_clone_oom() {
         let layout = Layout::new::<u8>();
         let inner =
-            unsafe { Vec::<u8>::from_raw_parts(alloc(layout), core::usize::MAX, core::usize::MAX) };
+            unsafe { Vec::<u8>::from_raw_parts(alloc(layout), core::isize::MAX as usize, core::isize::MAX as usize) };
         let tv = TryVec { inner };
         assert!(tv.try_clone().is_err());
     }
