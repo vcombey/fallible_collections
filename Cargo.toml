@@ -11,7 +11,7 @@ readme = "README.md"
 keywords = ["fallible", "collections"]
 
 [dependencies]
-hashbrown = "0.12.1"
+hashbrown = "0.13"
 
 [features]
 # Enable on nightly builds to allow use of unstable features
