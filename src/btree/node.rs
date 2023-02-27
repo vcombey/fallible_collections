@@ -1662,7 +1662,7 @@ unsafe fn slice_insert<T>(slice: &mut [T], idx: usize, val: T) {
         slice.as_mut_ptr().add(idx + 1),
         slice.len() - idx,
     );
-    ptr::write(slice.get_unchecked_mut(idx), val);
+    ptr::write(slice.as_mut_ptr().add(idx), val);
 }
 
 unsafe fn slice_remove<T>(slice: &mut [T], idx: usize) -> T {
