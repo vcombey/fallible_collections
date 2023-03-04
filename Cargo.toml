@@ -11,7 +11,7 @@ readme = "README.md"
 keywords = ["fallible", "collections"]
 
 [dependencies]
-hashbrown = { version = "0.12.1", optional = true }
+hashbrown = { version = "0.13", optional = true }
 
 [features]
 default = ["hashmap"]
