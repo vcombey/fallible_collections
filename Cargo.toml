@@ -11,14 +11,17 @@ readme = "README.md"
 keywords = ["fallible", "collections"]
 
 [dependencies]
-hashbrown = "0.12.1"
+hashbrown = { version = "0.12.1", optional = true }
 
 [features]
+default = ["hashmap"]
 # Enable on nightly builds to allow use of unstable features
 unstable = []
 # Functionality based on std::io types
 std_io = ["std"]
 # Allow use of std
 std = []
+# Allow use of hashmap
+hashmap = ["hashbrown"]
 # Use fallible functions added in Rust 1.57
 rust_1_57 = []

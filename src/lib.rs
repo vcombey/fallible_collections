@@ -47,18 +47,16 @@ pub mod arc;
 pub use arc::*;
 #[cfg(feature = "unstable")]
 pub mod btree;
-#[cfg(not(feature = "unstable"))]
+#[cfg(all(feature = "hashmap", not(feature = "unstable")))]
 pub mod hashmap;
-#[cfg(not(feature = "unstable"))]
+#[cfg(all(feature = "hashmap", not(feature = "unstable")))]
 pub use hashmap::*;
 #[macro_use]
 pub mod format;
 pub mod try_clone;
 
-#[cfg(all(feature = "unstable", not(feature = "rust_1_57")))]
-pub use alloc::collections::TryReserveError;
-#[cfg(not(all(feature = "unstable", not(feature = "rust_1_57"))))]
-pub use hashbrown::TryReserveError;
+pub mod try_reserve_error;
+pub use try_reserve_error::TryReserveError;
 
 #[cfg(feature = "std_io")]
 pub use vec::std_io::*;
@@ -81,7 +79,7 @@ pub trait TryClone {
 }
 
 #[cfg(feature = "rust_1_57")]
-fn make_try_reserve_error(len: usize, additional: usize, elem_size: usize, align: usize) -> hashbrown::TryReserveError {
+fn make_try_reserve_error(len: usize, additional: usize, elem_size: usize, align: usize) -> TryReserveError {
     if let Some(size) = len.checked_add(additional).and_then(|l| l.checked_mul(elem_size)) {
         if let Ok(layout) = alloc::alloc::Layout::from_size_align(size, align) {
             return TryReserveError::AllocError { layout }
