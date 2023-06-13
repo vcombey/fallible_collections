@@ -515,7 +515,7 @@ impl<T> FallibleVec<T> for Vec<T> {
             self.try_reserve(additional)
         }
 
-        #[cfg(not(feature = "rust_1_57"))]
+        #[cfg(all(not(feature = "unstable"), not(feature = "rust_1_57")))]
         {
             vec_try_reserve(self, additional)
         }
