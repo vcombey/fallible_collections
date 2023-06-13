@@ -22,16 +22,22 @@
 //! can't return a Result to indicate allocation failure.
 
 #![cfg_attr(not(test), no_std)]
-#![cfg_attr(all(feature = "unstable", not(feature = "rust_1_57")), feature(try_reserve))]
+#![cfg_attr(feature = "unstable", feature(try_reserve_kind))]
 #![cfg_attr(feature = "unstable", feature(min_specialization))]
 #![cfg_attr(feature = "unstable", feature(allocator_api))]
 #![cfg_attr(feature = "unstable", feature(dropck_eyepatch))]
 #![cfg_attr(feature = "unstable", feature(ptr_internals))]
 #![cfg_attr(feature = "unstable", feature(core_intrinsics))]
-#![cfg_attr(all(feature = "unstable", not(feature = "rust_1_57")), feature(maybe_uninit_ref))]
 #![cfg_attr(feature = "unstable", feature(maybe_uninit_slice))]
-#![cfg_attr(feature = "unstable", feature(maybe_uninit_extra))]
 #![cfg_attr(feature = "unstable", feature(maybe_uninit_uninit_array))]
+
+#[cfg(all(feature = "unstable", feature = "rust_1_57"))]
+compile_error!(
+    "The use of the 'unstable' feature combined with the \
+'rust_1_57' feature, which is related to the partial stabilization \
+of the allocator API since rustc version 1.57, does not make sense!"
+);
+
 extern crate alloc;
 #[cfg(feature = "std")]
 extern crate std;
