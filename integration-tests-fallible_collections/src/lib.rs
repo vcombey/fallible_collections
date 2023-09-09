@@ -52,18 +52,13 @@ pub fn TESTS(_args: &[&str]) -> Result<Vec<Box<dyn Testable>>, Box<dyn std::erro
     ));
 
     let features_list = [
-        "--features=",
+        "--no-default-features",
         "--features=std",
         "--features=std_io",
-        "--features=rust_1_57",
         // "--features=hashmap", // Default feature
+        "--features=hashmap",
         "--features=hashmap,std",
         "--features=hashmap,std_io",
-        "--features=hashmap,rust_1_57",
-        "--features=hashmap,rust_1_57,std",
-        "--features=hashmap,rust_1_57,std_io",
-        "--features=rust_1_57,std",
-        "--features=rust_1_57,std_io",
     ];
     output.extend(features_list.iter().map(|feature| {
         Box::new(
@@ -115,15 +110,6 @@ pub fn TESTS(_args: &[&str]) -> Result<Vec<Box<dyn Testable>>, Box<dyn std::erro
                 .set_attribute(attr.clone().name(format!("unstable build: {}", feature))),
         ) as Box<dyn Testable>
     }));
-
-    // output status must be different than 0
-    output.push(Box::new(
-        ok_cargo
-            .clone()
-            .output(|status: i32, _out: &[u8], _err: &[u8]| status != 0)
-            .args(["+nightly", "build", "--features=unstable,rust_1_57"])
-            .set_attribute(attr.clone().name("combinaison unstable + rust_1_57")),
-    ));
 
     Ok(output)
 }
