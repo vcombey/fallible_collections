@@ -517,7 +517,7 @@ impl<T> FallibleVec<T> for Vec<T> {
         if new_len > len {
             self.try_extend_with(new_len - len, TryExtendElement(value))
         } else {
-            Ok(self.truncate(new_len))
+            Ok(Truncate::truncate(self, new_len))
         }
     }
 
