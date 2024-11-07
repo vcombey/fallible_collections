@@ -28,6 +28,3 @@ hashmap = ["dep:hashbrown"]
 
 # Enable on nightly builds to allow use of unstable features
 unstable = []
-
-# Obsolete. Always enabled.
-rust_1_57 = []

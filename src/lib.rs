@@ -40,12 +40,6 @@ pub use boxed::*;
 #[macro_use]
 pub mod vec;
 pub use vec::*;
-pub mod rc;
-pub use rc::*;
-#[cfg(target_has_atomic = "ptr")]
-pub mod arc;
-#[cfg(target_has_atomic = "ptr")]
-pub use arc::*;
 #[cfg(feature = "unstable")]
 pub mod btree;
 #[cfg(all(feature = "hashmap", not(feature = "unstable")))]
