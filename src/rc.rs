@@ -1,12 +1,13 @@
 //! Implement a Fallible Rc
 use super::FallibleBox;
 use crate::TryReserveError;
+#[cfg(not(feature = "unstable"))]
 use alloc::boxed::Box;
 use alloc::rc::Rc;
 
 /// trait to implement Fallible Rc
 #[cfg_attr(
-    any(not(feature = "unstable"), feature = "rust_1_57"),
+    not(feature = "unstable"),
     deprecated(
         since = "0.4.9",
         note = "⚠️️️this function is not completely fallible, it can panic!, see [issue](https://github.com/vcombey/fallible_collections/issues/13). help wanted"
@@ -23,8 +24,24 @@ pub trait FallibleRc<T> {
 #[allow(deprecated)]
 impl<T> FallibleRc<T> for Rc<T> {
     fn try_new(t: T) -> Result<Self, TryReserveError> {
-        let b = <Box<T> as FallibleBox<T>>::try_new(t)?;
-        Ok(Rc::from(b))
+        #[cfg(not(feature = "unstable"))]
+        {
+            let b = <Box<T> as FallibleBox<T>>::try_new(t)?;
+            // bug: from() will reallocate and possibly abort
+            Ok(Rc::from(b))
+        }
+        #[cfg(feature = "unstable")]
+        {
+            use alloc::alloc::Layout;
+            use alloc::collections::TryReserveErrorKind;
+            Rc::try_new(t).map_err(|_e| {
+                TryReserveErrorKind::AllocError {
+                    layout: Layout::new::<Rc<T>>(), // TryReserveErrorKind is not well designed, since it uses a made-up layout, not error from the allocator
+                    non_exhaustive: (),
+                }
+                .into()
+            })
+        }
     }
 }
 
