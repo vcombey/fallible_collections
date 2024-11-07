@@ -13,10 +13,10 @@ type HashMap<K, V> = hashbrown::hash_map::HashMap<K, V>;
 type HashMap<K, V> = std::collections::HashMap<K, V>;
 
 #[cfg(not(feature = "std"))]
-use hashbrown::hash_map::{Iter, IntoIter};
+use hashbrown::hash_map::{IntoIter, Iter};
 
 #[cfg(feature = "std")]
-use std::collections::hash_map::{Iter, IntoIter};
+use std::collections::hash_map::{IntoIter, Iter};
 
 pub struct TryHashMap<K, V> {
     inner: HashMap<K, V>,
@@ -87,7 +87,9 @@ where
 
     #[inline(always)]
     fn reserve(&mut self, additional: usize) -> Result<(), TryReserveError> {
-        self.inner.try_reserve(additional).map_err(|_| make_try_reserve_error())
+        self.inner
+            .try_reserve(additional)
+            .map_err(|_| make_try_reserve_error())
     }
 }
 

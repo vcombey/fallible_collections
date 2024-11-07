@@ -432,9 +432,10 @@ impl<'a, T> Iterator for IterMut<'a, T> {
 }
 
 fn needs_to_grow<T>(v: &Vec<T>, len: usize) -> bool {
-    v.len().checked_add(len).map_or(true, |needed| needed > v.capacity())
+    v.len()
+        .checked_add(len)
+        .map_or(true, |needed| needed > v.capacity())
 }
-
 
 impl<T> FallibleVec<T> for Vec<T> {
     #[inline(always)]
@@ -743,16 +744,26 @@ mod tests {
     #[test]
     fn try_clone_oom() {
         let layout = Layout::new::<u8>();
-        let v =
-            unsafe { Vec::<u8>::from_raw_parts(alloc(layout), core::isize::MAX as usize, core::isize::MAX as usize) };
+        let v = unsafe {
+            Vec::<u8>::from_raw_parts(
+                alloc(layout),
+                core::isize::MAX as usize,
+                core::isize::MAX as usize,
+            )
+        };
         assert!(v.try_clone().is_err());
     }
 
     #[test]
     fn tryvec_try_clone_oom() {
         let layout = Layout::new::<u8>();
-        let inner =
-            unsafe { Vec::<u8>::from_raw_parts(alloc(layout), core::isize::MAX as usize, core::isize::MAX as usize) };
+        let inner = unsafe {
+            Vec::<u8>::from_raw_parts(
+                alloc(layout),
+                core::isize::MAX as usize,
+                core::isize::MAX as usize,
+            )
+        };
         let tv = TryVec { inner };
         assert!(tv.try_clone().is_err());
     }

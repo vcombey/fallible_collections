@@ -6,7 +6,6 @@ use core::borrow::Borrow;
 use core::mem::ManuallyDrop;
 use core::ops::Deref;
 
-
 /// trait to implement Fallible Box
 pub trait FallibleBox<T> {
     /// try creating a new box, returning a Result<Box<T>,
@@ -71,9 +70,7 @@ impl<T> FallibleBox<T> for Box<T> {
         // try_reserve_exact doesn't promise the exact size, but into_boxed_slice does.
         // in practice the size is going to be okay anyway, so it won't realloc.
         let ptr: *mut T = ManuallyDrop::new(vec.into_boxed_slice()).as_mut_ptr();
-        Ok(unsafe {
-            Box::from_raw(ptr)
-        })
+        Ok(unsafe { Box::from_raw(ptr) })
     }
 }
 
